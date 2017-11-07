@@ -1,5 +1,6 @@
 import hashlib
 import os
+import datetime
 
 
 class DiffieHellman:
@@ -41,6 +42,7 @@ class DiffieHellman:
     __predefined_G = 2
 
     def __init__(self, prime_number=None, generator=None, key_length=2048):
+        # start_timestamp = datetime.datetime.now()
         if prime_number is None:
             self.primeNumber = self.__predefined_P
         else:
@@ -51,16 +53,31 @@ class DiffieHellman:
             self.generator = generator
         self.__generate_private_key(key_length)
         self.__generate_public_key()
+        # end_timestamp = datetime.datetime.now()
+        # timestamp = end_timestamp - start_timestamp
+        # print('__init__ \t' + str(timestamp))
 
     def __generate_private_key(self, key_length=2048):
+        # start_timestamp = datetime.datetime.now()
         self.privateKey = int.from_bytes(os.urandom(key_length), byteorder='big')
+        # end_timestamp = datetime.datetime.now()
+        # timestamp = end_timestamp - start_timestamp
+        # print('priv \t' + str(timestamp))
 
     def __generate_public_key(self):
+        # start_timestamp = datetime.datetime.now()
         self.publicKey = pow(self.generator, self.privateKey, self.primeNumber)
+        # end_timestamp = datetime.datetime.now()
+        # timestamp = end_timestamp - start_timestamp
+        # print('pub \t' + str(timestamp))
 
     def generateKey(self, collaborator_key):
+        # start_timestamp = datetime.datetime.now()
         _sharedSecret = pow(collaborator_key, self.privateKey, self.primeNumber)
         self.symmectricKey = hashlib.sha256(str(_sharedSecret).encode('utf-8')).digest()
+        # end_timestamp = datetime.datetime.now()
+        # timestamp = end_timestamp - start_timestamp
+        # print('sym \t' + str(timestamp))
 
 
 if __name__ == '__main__':

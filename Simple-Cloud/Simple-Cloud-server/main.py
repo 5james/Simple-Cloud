@@ -3,7 +3,7 @@ import threading
 import socketserver
 import json
 from DiffieHellman import DiffieHellman
-from protocol import Protocol, MessageType
+from Protocol import Protocol, MessageType
 
 
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
@@ -84,7 +84,8 @@ def client(ip, port):
         msg_type, response = Protocol.decoder(response)
         key = response['key']
         dh.generateKey(key)
-        print(dh.symmectricKey)
+        sym_key = dh.symmectricKey
+        print(sym_key)
         # print(response_key)
         # print("Received: {}".format(response))
         # sock.sendall(bytes(message, 'ascii'))
