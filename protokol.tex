@@ -1,0 +1,197 @@
+\documentclass{article}
+
+\usepackage{polski}
+\usepackage[utf8]{inputenc}
+\usepackage{enumitem}
+
+\author{Artur M. Brodzki, Kuba Guzek}
+\title{Struktura protokołu MKOI}
+
+\begin{document}
+	\maketitle
+	
+	Kilka ogólnych reguł:
+	\begin{enumerate}
+		\item Każdy pakiet ma swój SID (\emph{session ID}) o długości 64 bajty. SID jest losowany przez klienta przy zalogowaniu i aż do momentu wylogowania służy jako identyfikator sesji (lista otwartych sesji jest przechowywana przez serwer). Pakiety o nieznanym numerze sesji inne niż REQ-0 (próba zalogowania) są odrzucane bez odpowiedzi. 
+		\item Oprócz tego, każde zapytanie do serwera (np. zapytanie o listę plików w katalogu użytkownika) posiada swój RID (\emph{request ID}) o długości 64 bajty. Odpowiedź na zapytanie o RID = $v$ ma też RID = $v$. 
+		\item Serwer nasłuchuje prób zalogowania się do systemu na porcie 2314 (są to pierwsze cztery cyfry z hasha SHA-512 ze słów "Diffi-Hellman"). Komunikacja z zalogowanymi użytkownikami odbywa się na innych portach. 
+		\item Protokół Diffiego - Hellmana wymaga ustalenia wspólnej liczby pierwszej $p$ oraz podstawy potęgi $g$. Przyjmujemy $p=\ jakas-duza-liczba-pierwsza-majaca-512-bitow$ oraz $g=2$ (bo potęgowanie dwójek jest chyba szybsze niż innych liczb?). Liczba pierwsza po której robimy modulo ma 512 bitów, czyli 64 B i tyle też ma każda liczba używana jako klucz w naszym protokole. 
+	\end{enumerate}
+	
+	\section{Logowanie użytkownika}
+	Klient najpierw wysyła swoją nazwę użytkownika. Jeżeli serwer posiada takiego użytkownika w systemie, następuje nawiązanie szyfrowanego połączenia poprzez zastosowanie protokołu Diffiego - Hellmana, a następnie potwierdzenie hasła. Jeżeli takiego użytkownika nie ma w systemie, następuje odmowa połączenia. Jeżeli hasło okaże się nieprawidłowe, również następuje odmowa połączenia. 
+	
+	\begin{enumerate}
+		\item Pakiet REQ-0 \label{REQ-1} (129 B): wysyłany przez klienta w celu zalogowania się do systemu. 
+		\begin{itemize}
+			\item SID (64 B)
+			\item REQ-TYPE = 0x00 (1 B)
+			\item USERNAME (64 B) - 64 znaki ASCII. 
+		\end{itemize}
+	
+		\item Pakiet LOGIN-STATUS \label{LOGIN-STATUS} (1 B): serwer wysyła go w celu potwierdzenia poprawności loginu. 
+		\begin{itemize}
+			\item LOGIN-FLAG (1B): flaga jest równa 0x00 jeśli logowanie przebiegło poprawnie, lub 0xFF jeśli logowanie nie powiodło się. Protokół znajduje się nad TCP, zakładamy więc, że odebrane dane są zawsze poprawne i nie może wystąpić inna wartosć flagi jak 0x00 $|$ 0xFF. 
+		\end{itemize}
+	
+		\item Pakiet DH-1 \label{DH-1} (64 B): Jeśli logowanie powiodło się, serwer losuje liczbę $a$ i odpowiada klientowi swoim sekretem $g^a\ mod\ p$. 
+		\begin{itemize}
+			\item DH-SERVER-SECRET (64 B)
+		\end{itemize}
+	
+		\item Pakiet DH-2 \label{DH-2} (128 B): klient losuje liczbę $b$ i odpowiada serwerowi swoim sekretem $g^b\ mod\ p$. 
+		\begin{itemize}
+			\item SID (64 B)
+			\item DH-CLIENT-SECRET (64B)
+		\end{itemize}
+		W tym momencie serwer i klient posiadają wspólny klucz szyfrowania symetrycznego, równy ${g^a}^b={g^b}^a$. Pozostałe komunikaty w ramach sesji są szyfrowane serpentem z użyciem tego klucza. 
+		
+		\item Pakiet PASWD-1 \label{PASWD-1} (128 B): klient wysyła serwerowi wartość funkcji SHA-512 z hasła. 
+		\begin{itemize}
+			\item SID (64 B)
+			\item PASSWD (64 B)
+		\end{itemize}
+	
+		\item Pakiet LOGIN-STATUS (65 B): serwer wysyła go w celu potwierdzenia poprawności hasła. Struktura identyczna jak w \ref{LOGIN-STATUS}. 	
+		
+	\end{enumerate}
+
+	\section{Listowanie zawartości katalogu użytkownika}
+	Klient wysyła zapytanie o listę plików w swoim katalogu. Serwer wysyła odpowiedź. 
+	
+	\begin{enumerate}
+		\item Pakiet REQ-1 \label{REQ-1} (131 B): klient wysyła zapytanie o listę plików w swoim katalogu oraz port, na którym jest gotów odebrać listę. 
+		\begin{itemize}
+			\item SID (64 B)
+			\item RID (64 B)
+			\item REQ-TYPE = 0x01 (1 B)
+			\item PORT (2 B)
+		\end{itemize}
+	
+		\item Pakiet LEN-1 \label{LEN-1} (72 B): serwer wysyła długość listy plików w bajtach. 
+		\begin{itemize}
+			\item RID (64 B)
+			\item LENGTH (8 B)
+		\end{itemize}
+	
+		W tym momencie serwer nawiązuje nową sesję na porcie $PORT$ klienta i wysyła tam $LENGTH$ bajtów danych, zawierających JSON-a z listą plików. Każdy plik to obiekt JSON-a zawierający pola:
+		\begin{itemize}
+			\item NAME
+			\item SIZE
+			\item LAST-MODIFICATION
+			\item HASH - wartość funkcji SHA-512 z pliku
+		\end{itemize}
+		
+	\end{enumerate}
+
+	\section{Dodawanie pliku na serwer}
+	Klient wysyła prośbę o wysłanie pliku na serwer. Serwer sprawdza, czy plik o takiej nazwie znajduje się już w katalogu użytkownika. Jeśli nie, wysyła klientowi pozwolenie na wysyłanie pliku wraz z numerem portu, na którym będzie przebiegać wysyłanie. Po otrzymaniu pozwolenia od serwera, klient rozpoczyna wysyłanie pliku. 
+	
+	\begin{enumerate}
+		\item Pakiet REQ-2 \label{REQ-2} (193 B): klient wysyła prośbę o pozwolenie na dodanie pliku do serwera. 
+		\begin{itemize}
+			\item SID (64 B)
+			\item RID (64 B)
+			\item REQ-TYPE = 0x02 (1 B)
+			\item NAME (64 B) - 64 znaki ASCII
+		\end{itemize}
+	
+		\item Pakiet RES-2 \label{RES-2} (67 B) : serwer wysyła zgodę wraz z numerem portu, na którym serwer jest gotów odebrać plik, lub brak zgody. 
+		\begin{itemize}
+			\item RID (64 B)
+			\item PERM-FLAG (1 B) - równe 0x00, jeśli plik może zostać wysłany na serwer, lub 0xFF jeśli plik nie może zostać wysłany na serwer. 
+			\item PORT (2 B) 
+		\end{itemize}
+	
+		\item Pakiet LEN-1 (72 B): klient wysyła rozmiar wysyłanego pliku. Struktura identyczna jak w \ref{LEN-1}
+	
+		W tym momencie klient nawiązuje nową sesję TCP na porcie $PORT$ serwera i wysyła tam $LENGTH$ bajtów danych zawierających dodawany plik. 
+
+	\end{enumerate}
+
+	\section{Pobieranie skrótu pliku z serwera}
+	Klient wysyła prośbę o wysłanie skrótu (SHA-512) pliku o zadanej nazwie. Serwer odsyła żądany skrót, lub 0, gdy takiego pliku nie ma na serwerze. 
+	
+	\begin{enumerate}
+		\item Pakiet REQ-3 \label{REQ-3} (193 B): klient wysyła prośbę o skrót zadanego pliku. 
+		\begin{itemize}
+			\item SID (64 B)
+			\item RID (64 B)
+			\item REQ-TYPE = 0x03 (1 B)
+			\item NAME (64 B)
+		\end{itemize}
+		
+		\item Pakiet RES-3 \label{RES-3} (129 B): serwer odpowiada skrótem pliku, o ile plik istnieje.  
+		\begin{itemize}
+			\item RID (64 B)
+			\item EXISTS-FLAG (1 B) - równe 0x00, jeśli plik znajduje się na serwerze, lub 0xFF jeśli pliku brak
+			\item HASH (64 B) - równe skrótowi pliku, jeśli plik znajduje się na serwerze, lub 0x0...0 jeśli pliku brak. 
+		\end{itemize}
+		
+	\end{enumerate}
+
+	\section{Pobieranie pliku z serwera}
+	Klient wysyła prośbę o pobranie pliku z serwera. Serwer sprawdza, czy plik o takiej nazwie znajduje się w katalogu użytkownika. Jeśli tak, wysyła klientowi pozwolenie na pobranie pliku wraz z numerem portu, na którym będzie przebiegać transmisja. Po otrzymaniu pozwolenia od serwera, rozpoczyna się pobieranie pliku. 
+	
+	\begin{enumerate}
+		\item Pakiet REQ-4 \label{REQ-4} (193 B): klient prosi o możliwość pobrania pliku z serwera. 
+		\begin{itemize}
+			\item SID (64 B)
+			\item RID (64 B)
+			\item REQ-TYPE = 0x04 (1 B)
+			\item NAME (64 B)
+		\end{itemize}
+	
+		\item Pakiet RES-4 \label{RES-4} (65 B): serwer odpowiada zgodą, o ile plik istnieje oraz długością przesyłanego pliku. 
+		\begin{itemize}
+			\item RID (64 B)
+			\item EXISTS-FLAG (1 B) - równe 0x00, jeśli plik istnieje, lub 0xFF jeśli pliku brak. 
+			\item LENGTH (8 B)
+		\end{itemize}
+	
+		\item Pakiet PORT-1 \label{PORT-1} (66 B): klient przesyła serwerowi port, na którym jest gotów odebrać plik. 
+		\begin{itemize}
+			\item RID (64 B)
+			\item PORT (2 B)
+		\end{itemize}
+	
+		W tym momencie serwer nawiązuje nową sesję TCP na porcie $PORT$ klienta i wysyła tam $LENGTH$ bajtów danych zawierających pobierany plik. 
+		
+	\end{enumerate}
+
+	\section{Usuwanie pliku}
+	Klient wysyła prośbę o wysłanie wskazanego pliku z serwera. Serwer odpowiada potwierdzeniem, jeśli plik istnieje i został usunięty. 
+	\begin{enumerate}
+		\item Pakiet REQ-5 (193 B): klient wysyła prośbę o usunięcie wskazanego pliku. 
+		\begin{itemize}
+			\item SID (64 B)
+			\item RID (64 B)
+			\item REQ-TYPE = 0x05 (1 B)
+			\item NAME (64 B)
+		\end{itemize}
+	
+		\item Pakiet RES-5 (72 B): serwer wysyła potwierdzenie usunięcia pliku lub stwierdza, że pliku nie było na serwerze. 
+		\begin{itemize}
+			\item RID (64 B)
+			\item DELETE-FLAG (1 B) - równe 0x00, jeśli plik został poprawnie usunięty, lub 0xFF jeśĺi pliku o zadanej nazwie nie było na serwerze. 
+		\end{itemize}
+		
+	\end{enumerate}
+
+	\section{Wylogowanie}
+	Klient wysyła prośbę o wylogowanie z serwera i tym samym usunięcie identyfikatora sesji. 
+	\begin{enumerate}
+		\item Pakiet REQ-6 (129 B) - klient wysyła prośbę o wylogowanie z serwera. 
+		\begin{itemize}
+			\item SID (64 B)
+			\item RID (64 B)
+			\item REQ-TYPE = 0x06 (1 B)
+		\end{itemize}
+		
+		
+	\end{enumerate}
+
+
+
+	
+\end{document}
