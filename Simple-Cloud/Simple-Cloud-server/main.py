@@ -1,13 +1,14 @@
 import socket
 import threading
 import socketserver
-import json
+import random
 from DiffieHellman import DiffieHellman
 from Protocol import Protocol, MessageType
 
 
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
+
         while True:
             length = self.receive_message_len()
             # check if client closed socket
@@ -20,7 +21,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
         data_recv = bytes(self.request.recv(length))
         data_str = str(data_recv.decode('ascii'))
         msg_type, data = Protocol.decoder(data_str)
-        if msg_type == MessageType.CONNECTION_DH.value:
+        if msg_type == MessageType.LOG_IN.value:
             self.proceed_connecting(data)
 
     def receive_message_len(self) -> int:
@@ -72,20 +73,24 @@ class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
 def client(ip, port):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((ip, port))
-        dh = DiffieHellman()
-        message_len, message_connect = Protocol.connect_encode(dh.publicKey)
-        sock.sendall(bytes(message_len, 'ascii'))
-        ack = str(sock.recv(64), 'ascii')
-        sock.sendall(bytes(message_connect, 'ascii'))
 
-        response_len = str(sock.recv(64), 'ascii')
-        sock.sendall(bytes(response_len, 'ascii'))
-        response = str(sock.recv(int(response_len)), 'ascii')
-        msg_type, response = Protocol.decoder(response)
-        key = response['key']
-        dh.generateKey(key)
-        sym_key = dh.symmectricKey
-        print(sym_key)
+        dh = DiffieHellman()
+        session_id = random.getrandbits(64)
+        username = 'james'
+
+        # message_len, message_connect = Protocol.connect_encode(dh.publicKey)
+        # sock.sendall(bytes(message_len, 'ascii'))
+        # ack = str(sock.recv(64), 'ascii')
+        # sock.sendall(bytes(message_connect, 'ascii'))
+        #
+        # response_len = str(sock.recv(64), 'ascii')
+        # sock.sendall(bytes(response_len, 'ascii'))
+        # response = str(sock.recv(int(response_len)), 'ascii')
+        # msg_type, response = Protocol.decoder(response)
+        # key = response['key']
+        # dh.generateKey(key)
+        # sym_key = dh.symmectricKey
+        # print(sym_key)
         # print(response_key)
         # print("Received: {}".format(response))
         # sock.sendall(bytes(message, 'ascii'))
