@@ -55,7 +55,7 @@ class Protocol:
         if did_succeed:
             return b'\x00'
         else:
-            return b'\x11'
+            return b'\xFF'
 
     @staticmethod
     def username_status_decode(did_succeed_byte: bytes) -> bool:
@@ -63,7 +63,7 @@ class Protocol:
             raise Exception('Wrong message length')
         if did_succeed_byte == b'\x00':
             return True
-        elif did_succeed_byte == b'\x11':
+        elif did_succeed_byte == b'\xFF':
             return False
         else:
             raise Exception('Wrong login status')
@@ -114,7 +114,7 @@ class Protocol:
         if auth_success:
             message += b'\x00'
         else:
-            message += b'\x11'
+            message += b'\xFF'
         message += session_id
         return message
 
@@ -125,7 +125,7 @@ class Protocol:
         auth_status_byte = message[0:1]
         if auth_status_byte == b'\x00':
             auth_status = True
-        elif auth_status_byte == b'\x11':
+        elif auth_status_byte == b'\xFF':
             auth_status = False
         else:
             raise Exception('Wrong login status')

@@ -9,17 +9,18 @@ class UserExistsException(Exception):
     pass
 
 
-def add_user(username: str, password: str):
-    try:
-        with open(user_database_filename, 'rb+') as file:
-            try:
-                user_database = pickle.load(file)
-                if not isinstance(user_database, dict):
+def add_user(username: str, password: str, user_database: dict = None):
+    if user_database is None:
+        try:
+            with open(user_database_filename, 'rb+') as file:
+                try:
+                    user_database = pickle.load(file)
+                    if not isinstance(user_database, dict):
+                        user_database = {}
+                except EOFError:
                     user_database = {}
-            except EOFError:
-                user_database = {}
-    except FileNotFoundError:
-        user_database = {}
+        except FileNotFoundError:
+            user_database = {}
     with open(user_database_filename, 'wb+') as file:
         if user_database.get(username) is not None:
             pickle.dump(user_database, file)
@@ -28,64 +29,83 @@ def add_user(username: str, password: str):
         pickle.dump(user_database, file)
 
 
-def check_user_existence(username: str) -> bool:
-    try:
-        with open(user_database_filename, 'rb') as file:
-            try:
-                user_database = pickle.load(file)
-                if not isinstance(user_database, dict):
+def check_user_existence(username: str, user_database: dict = None) -> bool:
+    if user_database is None:
+        try:
+            with open(user_database_filename, 'rb') as file:
+                try:
+                    user_database = pickle.load(file)
+                    if not isinstance(user_database, dict):
+                        return False
+
+                except EOFError:
                     return False
-                if user_database.get(username) is not None:
-                    return True
-                else:
-                    return False
-            except EOFError:
-                return False
-    except FileNotFoundError:
+        except FileNotFoundError:
+            return False
+    if user_database.get(username) is not None:
+        return True
+    else:
         return False
 
 
-def check_user_password_str(username: str, password_str: str) -> bool:
-    try:
-        with open(user_database_filename, 'rb') as file:
-            try:
-                user_database = pickle.load(file)
-                if not isinstance(user_database, dict):
+def check_user_password_str(username: str, password_str: str, user_database: dict = None) -> bool:
+    if user_database is None:
+        try:
+            with open(user_database_filename, 'rb') as file:
+                try:
+                    user_database = pickle.load(file)
+                    if not isinstance(user_database, dict):
+                        return False
+                        # password_from_db = user_database.get(username)
+                        # if password_from_db is not None:
+                        #     password = hashlib.sha3_512(password_str.encode('utf-8')).digest()
+                        #     if password_from_db == password:
+                        #         return True
+                        #     else:
+                        #         return False
+                        # else:
+                        #     return False
+                except EOFError:
                     return False
-                password_from_db = user_database.get(username)
-                if password_from_db is not None:
-                    password = hashlib.sha3_512(password_str.encode('utf-8')).digest()
-                    if password_from_db == password:
-                        return True
+        except FileNotFoundError:
+            return False
+    password_from_db = user_database.get(username)
+    if password_from_db is not None:
+        password = hashlib.sha3_512(password_str.encode('utf-8')).digest()
+        if password_from_db == password:
+            return True
+        else:
+            return False
+    else:
+        return False
+
+
+def check_user_password(username: str, password_sha512: bytes, user_database: dict = None) -> bool:
+    if user_database is None:
+        try:
+            with open(user_database_filename, 'rb') as file:
+                try:
+                    user_database = pickle.load(file)
+                    if not isinstance(user_database, dict):
+                        return False
+                    # password_from_db = user_database.get(username)
+                    # if password_from_db is not None:
+                    #     if password_from_db == password_sha512:
+                    #         return True
+                    #     else:
+                    #         return False
                     else:
                         return False
-                else:
+                except EOFError:
                     return False
-            except EOFError:
-                return False
-    except FileNotFoundError:
-        return False
-
-
-def check_user_password(username: str, password_sha512: bytes) -> bool:
-    try:
-        with open(user_database_filename, 'rb') as file:
-            try:
-                user_database = pickle.load(file)
-                if not isinstance(user_database, dict):
-                    return False
-                password_from_db = user_database.get(username)
-                if password_from_db is not None:
-                    if password_from_db == password_sha512:
-                        return True
-                    else:
-                        return False
-                else:
-                    return False
-            except EOFError:
-                return False
-    except FileNotFoundError:
-        return False
+        except FileNotFoundError:
+            return False
+    password_from_db = user_database.get(username)
+    if password_from_db is not None:
+        if password_from_db == password_sha512:
+            return True
+        else:
+            return False
 
 
 if __name__ == "__main__":
