@@ -87,7 +87,7 @@ def _display_main_menu_title_bar():
 def _get_user_main_menu_choice() -> str:
     # Let users know what they can do.
     print("[1] Add new user.")
-    print("[2] Check if you know user's password.")
+    # print("[2] Check if you know user's password.")
     print("[Q] Quit. (q is NOT Q)")
 
     return input("> ")
