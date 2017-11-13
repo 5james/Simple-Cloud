@@ -31,8 +31,6 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
         client_pubKey = Protocol.dh_decode(client_pubKey_bytes)
         self.dh.generateKey(client_pubKey)
 
-        print(self.dh.symmectricKey)
-
 
         # def receive_message(self, length: int):
         #     data_recv = bytes(self.request.recv(length))
@@ -106,8 +104,6 @@ def client(ip, port):
         sock.sendall(Protocol.dh_encode(dh.publicKey))
 
         dh.generateKey(server_pubKey)
-
-        print(dh.symmectricKey)
 
         # message_len, message_connect = Protocol.connect_encode(dh.publicKey)
         # sock.sendall(bytes(message_len, 'ascii'))
