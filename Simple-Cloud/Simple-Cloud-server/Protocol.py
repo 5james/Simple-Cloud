@@ -15,7 +15,7 @@ class MessageType(Enum):
 # message_length_size_byte = 8
 MAX_LEN_USERNAME = 64
 LEN_SESSION_ID = 64
-SECRET_LEN = 64
+SECRET_LEN = 768
 SHA_512_LEN = 64
 
 
@@ -37,14 +37,14 @@ class Protocol:
         return message
 
     @staticmethod
-    def req_0_decode(message_bytes: bytes) -> (bytes, str):
+    def req_0_decode(message_bytes: bytes) -> str:
         if len(message_bytes) != Protocol.req_0_len():
             raise Exception('Bad message length')
         # session_id = message_bytes[0:64]
         if message_bytes[0:1] != MessageType.LOG_IN.value.to_bytes(1, byteorder='big'):
             raise Exception('Wrong message!')
         username = str(message_bytes[1:65])
-        return session_id, username
+        return username
 
     @staticmethod
     def req_0_len() -> int:
@@ -73,16 +73,17 @@ class Protocol:
         return 1
 
     @staticmethod
-    def dh_encode(secret: bytes) -> bytes:
-        if len(secret) != Protocol.dh_len:
-            raise Exception('Wrong secret key length')
-        return secret
+    def dh_encode(secret: int) -> bytes:
+        if secret > _max_unsigned_int(Protocol.dh_len() * 8):
+            raise Exception('secret is too big')
+        bPubKey = secret.to_bytes(Protocol.dh_len(), byteorder='big')
+        return bPubKey
 
     @staticmethod
-    def dh_decode(message: bytes) -> bytes:
-        if len(message) != Protocol.dh_len:
-            raise Exception('Bad message length')
-        return message
+    def dh_decode(message: bytes) -> int:
+        # if len(message) != Protocol.dh_len:
+        #     raise Exception('Bad message length')
+        return int.from_bytes(message, byteorder='big')
 
     @staticmethod
     def dh_len():
@@ -135,81 +136,88 @@ class Protocol:
     def auth_status_len():
         return 1 + LEN_SESSION_ID
 
+        # @staticmethod
+        # def dh_1_encode(secret: bytes) -> bytes:
+        #     return secret
+        #
+        # @staticmethod
+        # def dh_1_decode(message: bytes) -> bytes:
+        #     return message
+        #
+        # @staticmethod
+        # def dh_1_len():
+        #     return SECRET_LEN
+        #
+        # @staticmethod
+        # def dh_2_encode(secret: bytes) -> bytes:
+        #     message = bytes()
+        #     # message += session_id
+        #     message += secret
+        #     return message
+        #
+        # @staticmethod
+        # def dh_2_decode(message: bytes) -> bytes:
+        #     return message
+        #
+        # @staticmethod
+        # def dh_2_len():
+        #     return LEN_SESSION_ID+SECRET_LEN
+        #
+        # @staticmethod
+        # def connect_encode(key) -> (str, str):
+        #     if key is None:
+        #         raise Exception("No key input")
+        #     data_python = {'message_type': MessageType.LOG_IN.value, 'key': key}
+        #     data_json = json.dumps(data_python)
+        #     message_length = Protocol.__message_length_encode(len(data_json))
+        #     return message_length, data_json
+        #
+        # @staticmethod
+        # def decoder(message: str) -> (int, dict):
+        #     try:
+        #         parsed_json = json.loads(message)
+        #         if parsed_json['message_type'] == MessageType.LOG_IN.value:
+        #             return Protocol._connect_decode(parsed_json)
+        #     except:
+        #         raise Exception('Bad json encoding')
+        #
+        # @staticmethod
+        # def _connect_decode(parsed_json) -> (int, dict):
+        #     if 'key' not in parsed_json:
+        #         raise Exception('Lack of data in json')
+        #     return parsed_json['message_type'], parsed_json
+        #
+        # @staticmethod
+        # def __message_length_encode(length: int) -> bytes:
+        #     # length_str = str(length)
+        #     # # if length of string containing length of sending message > 64 then Exception
+        #     # if len(length_str) > message_length_size:
+        #     #     raise Exception("Too large message")
+        #     # return length_str
+        #     try:
+        #         length_bytes = length.to_bytes(message_length_size_byte, byteorder='big', signed=False)
+        #         return length_bytes
+        #     except OverflowError:
+        #         raise Exception('Tried to send message bigger than 2^64b')
+        #
+        # @staticmethod
+        # def message_length_decode(length_bytes: bytes) -> int:
+        #     length = int.from_bytes(length_bytes, byteorder='big', signed=False)
+        #     return length
+        #
+        # @staticmethod
+        # def get_message_size():
+        #     return message_length_size_byte
 
 
-
-            # @staticmethod
-            # def dh_1_encode(secret: bytes) -> bytes:
-            #     return secret
-            #
-            # @staticmethod
-            # def dh_1_decode(message: bytes) -> bytes:
-            #     return message
-            #
-            # @staticmethod
-            # def dh_1_len():
-            #     return SECRET_LEN
-            #
-            # @staticmethod
-            # def dh_2_encode(secret: bytes) -> bytes:
-            #     message = bytes()
-            #     # message += session_id
-            #     message += secret
-            #     return message
-            #
-            # @staticmethod
-            # def dh_2_decode(message: bytes) -> bytes:
-            #     return message
-            #
-            # @staticmethod
-            # def dh_2_len():
-            #     return LEN_SESSION_ID+SECRET_LEN
-            #
-            # @staticmethod
-            # def connect_encode(key) -> (str, str):
-            #     if key is None:
-            #         raise Exception("No key input")
-            #     data_python = {'message_type': MessageType.LOG_IN.value, 'key': key}
-            #     data_json = json.dumps(data_python)
-            #     message_length = Protocol.__message_length_encode(len(data_json))
-            #     return message_length, data_json
-            #
-            # @staticmethod
-            # def decoder(message: str) -> (int, dict):
-            #     try:
-            #         parsed_json = json.loads(message)
-            #         if parsed_json['message_type'] == MessageType.LOG_IN.value:
-            #             return Protocol._connect_decode(parsed_json)
-            #     except:
-            #         raise Exception('Bad json encoding')
-            #
-            # @staticmethod
-            # def _connect_decode(parsed_json) -> (int, dict):
-            #     if 'key' not in parsed_json:
-            #         raise Exception('Lack of data in json')
-            #     return parsed_json['message_type'], parsed_json
-            #
-            # @staticmethod
-            # def __message_length_encode(length: int) -> bytes:
-            #     # length_str = str(length)
-            #     # # if length of string containing length of sending message > 64 then Exception
-            #     # if len(length_str) > message_length_size:
-            #     #     raise Exception("Too large message")
-            #     # return length_str
-            #     try:
-            #         length_bytes = length.to_bytes(message_length_size_byte, byteorder='big', signed=False)
-            #         return length_bytes
-            #     except OverflowError:
-            #         raise Exception('Tried to send message bigger than 2^64b')
-            #
-            # @staticmethod
-            # def message_length_decode(length_bytes: bytes) -> int:
-            #     length = int.from_bytes(length_bytes, byteorder='big', signed=False)
-            #     return length
-            #
-            # @staticmethod
-            # def get_message_size():
-            #     return message_length_size_byte
+def _max_unsigned_int(bit_size: int) -> int:
+    if bit_size <= 0:
+        return 0
+    result = 1
+    for i in range(bit_size - 1):
+        result = result << 1
+        result += 1
+    return result
 
 
 if __name__ == "__main__":
