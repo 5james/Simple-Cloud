@@ -128,8 +128,6 @@ def _create_new_user(user_database: dict = None):
             add_user(username, password, user_database)
 
 
-
-
 if __name__ == "__main__":
     user_database = _get_user_database()
     choice = ''

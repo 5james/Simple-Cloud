@@ -29,8 +29,11 @@ This version implements Serpent-1, i.e. the variant defined in the final
 submission to NIST.
 """
 import re
-from bitstring import BitArray
+from bitstring import BitStream, BitArray
 import binascii
+
+BYTES_IN_SINGLE_CHUNK = 16
+BITS_IN_SINGLE_CHUNK = 128
 
 
 class SerpentCipherClassicalString:
@@ -42,15 +45,45 @@ class SerpentCipherClassicalString:
         elif isinstance(hex_key, BitArray):
             self.userKey = makeLongKey(hex_key.bin)
 
-    def encrypt(self, bitstring, number_of_bits_in_single_chunk=128) -> [str]:
-        number_of_hex_in_single_chunk = int(number_of_bits_in_single_chunk / 4)
-        chunks = [bitstring[i:i + number_of_hex_in_single_chunk]
-                  for i in range(0, len(bitstring), number_of_hex_in_single_chunk)]
+    def encrypt_bytes(self, bytes_to_encrypt: bytes) -> bytes:
+        # b = BitArray(bytes_to_encrypt)
+        # b_str = b.hex
+        # encrypted_str_list = self.encrypt(b_str)
+        # result = bytes()
+        # for item in encrypted_str_list:
+        #     result += bytes(BitArray(bin=item).bytes)
+        # return result
+        b = BitArray(bytes=bytes_to_encrypt)
+        chunks = [b[i:i + BITS_IN_SINGLE_CHUNK] for i in range(0, len(b), BITS_IN_SINGLE_CHUNK)]
         encrypted_chunks = []
         for chunk in chunks:
-            plainText = convertToBitstring(chunk, number_of_bits_in_single_chunk)
-            encrypted_chunks.append(encrypt(plainText, self.userKey))
-        return encrypted_chunks
+            encrypted_chunks.append(encrypt(convertToBitstring(chunk.hex, BITS_IN_SINGLE_CHUNK), self.userKey))
+        result = bytes()
+        for item in encrypted_chunks:
+            result += bytes(BitArray(hex=bitstring2hexstring(item)).bytes)
+        return result
+
+    # def encrypt(self, bitstring, number_of_bits_in_single_chunk=128) -> [str]:
+    #     number_of_hex_in_single_chunk = int(number_of_bits_in_single_chunk / 4)
+    #     chunks = [bitstring[i:i + number_of_hex_in_single_chunk]
+    #               for i in range(0, len(bitstring), number_of_hex_in_single_chunk)]
+    #     encrypted_chunks = []
+    #     for chunk in chunks:
+    #         plainText = convertToBitstring(chunk, number_of_bits_in_single_chunk)
+    #         encrypted_chunks.append(encrypt(plainText, self.userKey))
+    #     return encrypted_chunks
+
+    def decrypt_bytes(self, encrypted_bytes: bytes) -> bytes:
+        b = BitArray(bytes=encrypted_bytes)
+        chunks = [b[i:i + BITS_IN_SINGLE_CHUNK] for i in range(0, len(b), BITS_IN_SINGLE_CHUNK)]
+        decrypted_chunks = []
+        for chunk in chunks:
+            decrypted_chunks.append(decrypt(
+                convertToBitstring(chunk.hex, BITS_IN_SINGLE_CHUNK), self.userKey))
+        result = bytes()
+        for item in decrypted_chunks:
+            result += bytes(BitArray(hex=bitstring2hexstring(item)).bytes)
+        return result
 
 
 # --------------------------------------------------------------
@@ -1183,14 +1216,29 @@ if __name__ == "__main__":
     # print(c.bin)
     userKey = makeLongKey(rawKey)
     plainText = convertToBitstring(textToEncrypt, 128)
+    # print(">>> " + plainText)
     cipherText = encrypt(plainText, userKey)
-    # print(cipherText)
     decrypted = decrypt(cipherText, userKey)
-    # print(decrypted)
+
+    print(bitstring2hexstring(cipherText))
+    print(plainText)
+    print(decrypted)
     if decrypted == plainText:
         print('OK')
 
     s = SerpentCipherClassicalString('0000000000000000000000000000000000000000000000000000000000000001')
-    tmp = s.encrypt('100100000000000000000000000000001010')
+    # tmp = s.encrypt('100100000000000000000000000000001010')
+    # c = BitArray(hex='100100000000000000000000000000001010')
+    # tmp2 = s.encrypt_bytes(bytes(c.bytes))
+    # c = BitArray(tmp2)
+    # print(c.bin)
     # print(tmp)
     # print(cipherText)
+
+    textToEncryptBytes = bytes(BitArray(hex=textToEncrypt).bytes)
+    encrypted = s.encrypt_bytes(textToEncryptBytes)
+    print(BitArray(bytes=encrypted).hex)
+    decrypted = s.decrypt_bytes(encrypted)
+    # print(BitArray(bytes=decrypted).hex)
+    # print(textToEncrypt)
+    print(textToEncryptBytes == decrypted)
