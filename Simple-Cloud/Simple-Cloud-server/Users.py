@@ -3,7 +3,8 @@ import hashlib
 from pathlib import Path
 import os
 
-user_database_filename = r'users'
+_USER_DATABASE_FILENAME = r'users'
+VIRTUAL_FILESYSTEM_DIR = './virtual-fs/'
 
 
 class UserExistsException(Exception):
@@ -13,12 +14,14 @@ class UserExistsException(Exception):
 def add_user(username: str, password: str, user_database: dict = None):
     if user_database is None:
         user_database = _get_user_database()
-    with open(user_database_filename, 'wb+') as file:
+    with open(_USER_DATABASE_FILENAME, 'wb+') as file:
         if user_database.get(username) is not None:
             pickle.dump(user_database, file)
             raise UserExistsException('User with username \'{}\' already exists.'.format(username))
         user_database[username] = hashlib.sha3_512(password.encode('utf-8')).digest()
         pickle.dump(user_database, file)
+        if not os.path.exists(VIRTUAL_FILESYSTEM_DIR + username):
+            os.makedirs(VIRTUAL_FILESYSTEM_DIR + username)
 
 
 def check_user_existence(username: str, user_database: dict = None) -> bool:
@@ -59,7 +62,7 @@ def check_user_password(username: str, password_sha512: bytes, user_database: di
 
 def _get_user_database() -> dict:
     try:
-        with open(user_database_filename, 'rb') as file:
+        with open(_USER_DATABASE_FILENAME, 'rb') as file:
             try:
                 user_database = pickle.load(file)
                 if not isinstance(user_database, dict):

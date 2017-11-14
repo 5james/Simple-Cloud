@@ -89,5 +89,6 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 
-# User database
+# User database and FS
 /users
+virtual-fs
