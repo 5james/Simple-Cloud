@@ -53,6 +53,11 @@ class SerpentCipherClassicalString:
         # for item in encrypted_str_list:
         #     result += bytes(BitArray(bin=item).bytes)
         # return result
+        bytes_fill = len(bytes_to_encrypt) % BYTES_IN_SINGLE_CHUNK
+        if bytes_fill != 0:
+            bytes_to_encrypt = bytes_to_encrypt.ljust(len(bytes_to_encrypt) + BYTES_IN_SINGLE_CHUNK - bytes_fill,
+                                                      b'\x00')
+
         b = BitArray(bytes=bytes_to_encrypt)
         chunks = [b[i:i + BITS_IN_SINGLE_CHUNK] for i in range(0, len(b), BITS_IN_SINGLE_CHUNK)]
         encrypted_chunks = []
@@ -1225,7 +1230,7 @@ if __name__ == "__main__":
     print(decrypted)
     if decrypted == plainText:
         print('OK')
-
+    textToEncrypt = '100100000000000000000000000000001001000000000000000000000000000011'
     s = SerpentCipherClassicalString('0000000000000000000000000000000000000000000000000000000000000001')
     # tmp = s.encrypt('100100000000000000000000000000001010')
     # c = BitArray(hex='100100000000000000000000000000001010')
@@ -1239,6 +1244,5 @@ if __name__ == "__main__":
     encrypted = s.encrypt_bytes(textToEncryptBytes)
     print(BitArray(bytes=encrypted).hex)
     decrypted = s.decrypt_bytes(encrypted)
-    # print(BitArray(bytes=decrypted).hex)
-    # print(textToEncrypt)
-    print(textToEncryptBytes == decrypted)
+    print(BitArray(bytes=decrypted).hex)
+    print(textToEncrypt)
