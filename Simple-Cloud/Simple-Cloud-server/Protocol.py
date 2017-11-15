@@ -15,6 +15,7 @@ class MessageType(Enum):
     GET_HASH = 3
     DOWNLOAD_FILE = 4
     DELETE_FILE = 5
+    LOG_OUT = 6
 
 
 # message_length_size_bit = 64
@@ -549,6 +550,17 @@ class Protocol:
     def check_request_id_len(request_id: bytes):
         if len(request_id) != LEN_SESSION_ID:
             raise Exception('Wrong request_id length')
+
+    @staticmethod
+    def request_logout_encode(session_id: bytes, request_id: bytes) -> bytes:
+        Protocol.check_request_id_len(request_id)
+        Protocol.check_session_id_len(session_id)
+        message = bytes()
+        message += Protocol.header_encode(session_id, request_id, MessageType.LOG_OUT)
+        return message
+
+    def encrypted_request_logout_encode(self, session_id: bytes, request_id: bytes) -> bytes:
+        return self.encrypt(self.request_logout_encode(session_id, request_id))
 
 
 def _max_unsigned_int(bit_size: int) -> int:

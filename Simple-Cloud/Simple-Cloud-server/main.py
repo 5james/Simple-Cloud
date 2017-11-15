@@ -47,6 +47,9 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                 elif message_type == MessageType.DELETE_FILE.value:
                     self.handle_delete_file(request_id, message)
 
+                elif message_type == MessageType.LOG_OUT.value:
+                    break
+
                 else:
                     break
 
@@ -278,7 +281,9 @@ def client(ip, port):
         recv = sock.recv(1024)
         request_id_new, bDidDelete = cipher_protocol.encrypted_response_delete_file_decode(recv)
         # print(bDidDelete)
-        
+
+
+
         sock.close()
 
 
