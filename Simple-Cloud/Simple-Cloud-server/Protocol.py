@@ -12,6 +12,7 @@ class MessageType(Enum):
     LOG_IN = 0
     LIST_FILES = 1
     UPLOAD_FILE = 2
+    GET_HASH = 3
 
 
 # message_length_size_bit = 64
@@ -25,6 +26,7 @@ MAX_JSON_SIZE = 8
 MAX_PORT_SIZE = 2
 MAX_FILENAME_SIZE = 64
 MAX_FILE_SIZE_LEN = 8
+HEADER_SIZE = LEN_SESSION_ID + LEN_REQUEST_ID + 1
 
 
 class Protocol:
@@ -286,7 +288,7 @@ class Protocol:
         """
         filename_position = LEN_REQUEST_ID + LEN_SESSION_ID + 1
         filename_with_junk = message[filename_position: filename_position + MAX_FILENAME_SIZE].decode('utf-8')
-        filename = re.match(r'[\w +-/*,()\[\]\&]*', filename_with_junk, re.M|re.I).group()
+        filename = re.match(r'[\w +-/*,()\[\]\&]*', filename_with_junk, re.M | re.I).group()
         return filename
 
     def encrypted_request_upload_file_decode(self, encrypted_message: bytes) -> str:
@@ -349,6 +351,67 @@ class Protocol:
 
     def encrypted_client_response_upload_file_decode(self, encrypted_message: bytes) -> (bytes, int):
         return self.client_response_upload_file_decode(self.decrypt(encrypted_message))
+
+    @staticmethod
+    def request_file_hash_encode(session_id: bytes, request_id: bytes, filename: str) -> bytes:
+        message = bytes()
+        message += Protocol.header_encode(session_id, request_id, MessageType.GET_HASH)
+        message += filename.encode('utf-8').ljust(MAX_FILENAME_SIZE, b'\x00')
+        return message
+
+    def encrypted_request_file_hash_encode(self, session_id: bytes, request_id: bytes, filename: str) -> bytes:
+        return self.encrypt(self.request_file_hash_encode(session_id, request_id, filename))
+
+    @staticmethod
+    def request_file_hash_decode(message: bytes) -> str:
+        filename_pos = HEADER_SIZE
+        filename_with_junk = message[filename_pos: filename_pos + MAX_FILENAME_SIZE].decode('utf-8')
+        filename = re.match(r'[\w +-/*,()\[\]\&]*', filename_with_junk, re.M | re.I).group()
+        return filename
+
+    def encrypted_request_file_hash_decode(self, encrypted_message: bytes) -> str:
+        return self.request_file_hash_decode(self.decrypt(encrypted_message))
+
+    @staticmethod
+    def response_file_hash_encode(request_id: bytes, file_exists: bool, file_hash: bytes = None) -> bytes:
+        if len(request_id) != LEN_REQUEST_ID:
+            raise Exception('Wrong request ID length')
+        message = bytes()
+        message += request_id
+        if file_exists:
+            message += b'\x00'
+            message += file_hash
+        else:
+            message += b'\xFF'
+            message += bytes(SHA_512_LEN)
+        return message
+
+    def encrypted_response_file_hash_encode(self, request_id: bytes, file_exists: bool,
+                                            file_hash: bytes = None) -> bytes:
+        return self.encrypt(self.response_file_hash_encode(request_id, file_exists, file_hash))
+
+    @staticmethod
+    def response_file_hash_decode(message: bytes) -> (bytes, bool, bytes):
+        actual_position = 0
+        request_id = message[actual_position: actual_position + LEN_REQUEST_ID]
+        actual_position += LEN_REQUEST_ID
+        bFileExists_bytes = message[actual_position: actual_position + 1]
+        if bFileExists_bytes == b'\x00':
+            bFileExists = True
+            actual_position += 1
+            file_hash = message[actual_position: actual_position + SHA_512_LEN]
+        elif bFileExists_bytes == b'\xFF':
+            bFileExists = False
+            actual_position += 1
+            file_hash = message[actual_position: actual_position + SHA_512_LEN]
+            if file_hash != bytes(64):
+                raise Exception('file_hash is not 0x000...000 with non existing file!')
+        else:
+            raise Exception('Wrong file_exists encoding')
+        return request_id, bFileExists, file_hash
+
+    def encrypted_response_file_hash_decode(self, encrypted_message: bytes) -> (bytes, bool, bytes):
+        return self.response_file_hash_decode(self.decrypt(encrypted_message))
 
 
 two = 1 + 1

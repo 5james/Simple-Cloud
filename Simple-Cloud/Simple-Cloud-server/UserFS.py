@@ -37,7 +37,7 @@ class UserFS:
     def hash_sha3_512(self, file_path: str):
         sha3_512 = hashlib.sha3_512()
         sha3_512.update(self.get_file_as_bytes(file_path))
-        return sha3_512.hexdigest()
+        return sha3_512.digest()
 
     def save_file_from_bytes(self, file_path: str, file_bytes: bytes) -> bool:
         with self.lock:

@@ -14,6 +14,9 @@ session_ids_lock = threading.Condition()
 session_ids = set()
 
 
+# TODO: uporządkować session_ids i request_ids
+
+
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         bAuthSuccessful = self.auth()
@@ -26,6 +29,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                 req_session_id, request_id, message_type, message = \
                     self.cipher_protocol.encrypted_establish_message_type(recv)
                 if req_session_id != self.session_id:
+                    print('+{}\n+{}'.format(str(req_session_id), str(self.session_id)))
                     break
 
                 if message_type == MessageType.LIST_FILES.value:
@@ -33,6 +37,9 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
 
                 elif message_type == MessageType.UPLOAD_FILE.value:
                     self.handle_file_upload_request(request_id, message)
+
+                elif message_type == MessageType.GET_HASH.value:
+                    self.handle_get_file_hash(request_id, message)
 
     def auth(self) -> bool:
         req_0 = self.request.recv(Protocol.req_0_len())
@@ -105,7 +112,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                 sock.listen(10)
                 response = self.cipher_protocol.encrypted_response_upload_file_encode(request_id, can_upload,
                                                                                       sock.getsockname()[1])
-                print(sock.getsockname()[1])
+                # print(sock.getsockname()[1])
                 self.request.sendall(response)
 
                 recv = self.request.recv(1024)
@@ -115,6 +122,18 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                 with conn:
                     file = conn.recv(file_size)
                     self.user_fs.save_file_from_bytes(filename, file)
+                    # print(file)
+                    conn.close()
+                sock.close()
+
+    def handle_get_file_hash(self, request_id: bytes, message):
+        filename = Protocol.request_file_hash_decode(message)
+        try:
+            file_hash = self.user_fs.hash_sha3_512(filename)
+            self.request.sendall(self.cipher_protocol.encrypted_response_file_hash_encode(request_id, True, file_hash))
+
+        except FileDoesNotExistsException:
+            self.request.sendall(self.cipher_protocol.encrypted_response_file_hash_encode(request_id, False))
 
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -163,28 +182,43 @@ def client(ip, port):
 
         recv = sock.recv(2048)
         request_id, json_size, port = cipher_protocol.encrypted_response_request_list_files_decode(recv)
-        print(port)
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-            HOST = socket.gethostbyname(socket.gethostname())
-            sock2.connect((HOST, port))
-            recv = sock2.recv(json_size)
-            print(cipher_protocol.decrypt(recv))
-            sock2.close()
+        # print(port)
+        if port != 0:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
+                HOST = socket.gethostbyname(socket.gethostname())
+                sock2.connect((HOST, port))
+                recv = sock2.recv(json_size)
+                # print(cipher_protocol.decrypt(recv))
+                sock2.close()
 
         sock.sendall(cipher_protocol.encrypted_request_upload_file_encode(session_id, bytearray(
-            random.getrandbits(8) for i in range(64)), 'test2.txt'))
+            random.getrandbits(8) for i in range(64)), 'test3.txt'))
         recv = sock.recv(2048)
         request_id, can_upload, port = cipher_protocol.encrypted_response_upload_file_decode(recv)
-        print(can_upload)
-        print(port)
+        # print(can_upload)
+        # print(port)
+        # print(session_id)
 
-        myfile = b'12341234'
-        sock.sendall(cipher_protocol.encrypted_client_response_upload_file_encode(request_id, len(myfile)))
+        if port != 0:
+            myfile = b'12341234'
+            sock.sendall(cipher_protocol.encrypted_client_response_upload_file_encode(request_id, len(myfile)))
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
+                HOST = socket.gethostbyname(socket.gethostname())
+                sock2.connect((HOST, port))
+                sock2.send(myfile)
+                # print(myfile)
 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-            HOST = socket.gethostbyname(socket.gethostname())
-            sock2.connect((HOST, port))
-            sock2.send(myfile)
+
+        sock.sendall(cipher_protocol.encrypted_request_file_hash_encode(session_id, bytearray(
+            random.getrandbits(8) for i in range(64)), 'test.txt'))
+
+        # print(session_id)
+
+        recv = sock.recv(1024)
+
+        request_id, bFileExists, file_hash = cipher_protocol.encrypted_response_file_hash_decode(recv)
+        print(bFileExists)
+        print(file_hash)
 
         sock.close()
 
