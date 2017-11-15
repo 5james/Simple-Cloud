@@ -4,6 +4,7 @@ from fs.osfs import *
 from fs.base import *
 import hashlib
 
+# TODO ogarnąć locki dla każdego użytwkonika z różnych sesji
 
 class FileDoesNotExistsException(Exception):
     pass

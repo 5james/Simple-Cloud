@@ -13,6 +13,7 @@ class MessageType(Enum):
     LIST_FILES = 1
     UPLOAD_FILE = 2
     GET_HASH = 3
+    DOWNLOAD_FILE = 4
 
 
 # message_length_size_bit = 64
@@ -175,7 +176,7 @@ class Protocol:
         # if len(message) != Protocol.request_list_files_len():
         #     raise Exception('Wrong message length')
         actual_position = 0
-        session_id = message[actual_position:LEN_SESSION_ID]
+        # session_id = message[actual_position:LEN_SESSION_ID]
         actual_position += LEN_SESSION_ID
         request_id = message[actual_position:actual_position + LEN_REQUEST_ID]
         actual_position += LEN_REQUEST_ID
@@ -288,7 +289,7 @@ class Protocol:
         """
         filename_position = LEN_REQUEST_ID + LEN_SESSION_ID + 1
         filename_with_junk = message[filename_position: filename_position + MAX_FILENAME_SIZE].decode('utf-8')
-        filename = re.match(r'[\w +-/*,()\[\]\&]*', filename_with_junk, re.M | re.I).group()
+        filename = re.match(r'[\w +-/*,()\[\]&]*', filename_with_junk, re.M | re.I).group()
         return filename
 
     def encrypted_request_upload_file_decode(self, encrypted_message: bytes) -> str:
@@ -366,7 +367,7 @@ class Protocol:
     def request_file_hash_decode(message: bytes) -> str:
         filename_pos = HEADER_SIZE
         filename_with_junk = message[filename_pos: filename_pos + MAX_FILENAME_SIZE].decode('utf-8')
-        filename = re.match(r'[\w +-/*,()\[\]\&]*', filename_with_junk, re.M | re.I).group()
+        filename = re.match(r'[\w +-/*,()\[\]&]*', filename_with_junk, re.M | re.I).group()
         return filename
 
     def encrypted_request_file_hash_decode(self, encrypted_message: bytes) -> str:
@@ -413,82 +414,75 @@ class Protocol:
     def encrypted_response_file_hash_decode(self, encrypted_message: bytes) -> (bytes, bool, bytes):
         return self.response_file_hash_decode(self.decrypt(encrypted_message))
 
+    @staticmethod
+    def request_download_file_encode(session_id: bytes, request_id: bytes, filename: str) -> bytes:
+        if len(session_id) != LEN_SESSION_ID or len(request_id) != LEN_REQUEST_ID:
+            raise Exception('Wrong length of session_id or request_id')
+        message = bytes()
+        message += Protocol.header_encode(session_id, request_id, MessageType.DOWNLOAD_FILE)
+        message += filename.encode('utf-8').ljust(MAX_FILENAME_SIZE, b'\x00')
+        return message
 
-two = 1 + 1
+    def encrypted_request_download_file_encode(self, session_id: bytes, request_id: bytes, filename: str) -> bytes:
+        return self.encrypt(self.request_download_file_encode(session_id, request_id, filename))
 
+    @staticmethod
+    def request_download_file_decode(message: bytes) -> str:
+        filename_pos = HEADER_SIZE
+        filename_with_junk = message[filename_pos: filename_pos + MAX_FILENAME_SIZE].decode('utf-8')
+        filename = re.match(r'[\w +-/*,()\[\]&]*', filename_with_junk, re.M | re.I).group()
+        return filename
 
-# @staticmethod
-# def dh_1_encode(secret: bytes) -> bytes:
-#     return secret
-#
-# @staticmethod
-# def dh_1_decode(message: bytes) -> bytes:
-#     return message
-#
-# @staticmethod
-# def dh_1_len():
-#     return SECRET_LEN
-#
-# @staticmethod
-# def dh_2_encode(secret: bytes) -> bytes:
-#     message = bytes()
-#     # message += session_id
-#     message += secret
-#     return message
-#
-# @staticmethod
-# def dh_2_decode(message: bytes) -> bytes:
-#     return message
-#
-# @staticmethod
-# def dh_2_len():
-#     return LEN_SESSION_ID+SECRET_LEN
-#
-# @staticmethod
-# def connect_encode(key) -> (str, str):
-#     if key is None:
-#         raise Exception("No key input")
-#     data_python = {'message_type': MessageType.LOG_IN.value, 'key': key}
-#     data_json = json.dumps(data_python)
-#     message_length = Protocol.__message_length_encode(len(data_json))
-#     return message_length, data_json
-#
-# @staticmethod
-# def decoder(message: str) -> (int, dict):
-#     try:
-#         parsed_json = json.loads(message)
-#         if parsed_json['message_type'] == MessageType.LOG_IN.value:
-#             return Protocol._connect_decode(parsed_json)
-#     except:
-#         raise Exception('Bad json encoding')
-#
-# @staticmethod
-# def _connect_decode(parsed_json) -> (int, dict):
-#     if 'key' not in parsed_json:
-#         raise Exception('Lack of data in json')
-#     return parsed_json['message_type'], parsed_json
-#
-# @staticmethod
-# def __message_length_encode(length: int) -> bytes:
-#     # length_str = str(length)
-#     # # if length of string containing length of sending message > 64 then Exception
-#     # if len(length_str) > message_length_size:
-#     #     raise Exception("Too large message")
-#     # return length_str
-#     try:
-#         length_bytes = length.to_bytes(message_length_size_byte, byteorder='big', signed=False)
-#         return length_bytes
-#     except OverflowError:
-#         raise Exception('Tried to send message bigger than 2^64b')
-#
-# @staticmethod
-# def message_length_decode(length_bytes: bytes) -> int:
-#     length = int.from_bytes(length_bytes, byteorder='big', signed=False)
-#     return length
-#
-# @staticmethod
-# def get_message_size():
-#     return message_length_size_byte
+    def encrypted_request_download_file_decode(self, encrypted_message: bytes) -> str:
+        return self.request_download_file_decode(self.decrypt(encrypted_message))
+
+    @staticmethod
+    def response_download_file_encode(request_id: bytes, file_exists: bool, file_size: int = 0, port: int = 0) -> bytes:
+        if len(request_id) != LEN_REQUEST_ID:
+            raise Exception('Wrong request_id length')
+        message = bytes()
+        message += request_id
+        if file_exists:
+            message += b'\x00'
+        else:
+            message += b'\xFF'
+        message += file_size.to_bytes(MAX_FILE_SIZE_LEN, byteorder='big')
+        message += port.to_bytes(MAX_PORT_SIZE, byteorder='big')
+        return message
+
+    def encrypted_response_download_file_encode(self, request_id: bytes, file_exists: bool, file_size: int = 0,
+                                                port: int = 0) -> bytes:
+        return self.encrypt(self.response_download_file_encode(request_id, file_exists, file_size, port))
+
+    @staticmethod
+    def response_download_file_decode(message: bytes) -> (bytes, bool, int, int):
+        actual_position = 0
+        request_id = message[actual_position: actual_position + LEN_REQUEST_ID]
+        actual_position += LEN_REQUEST_ID
+        bFileExists_bytes = message[actual_position: actual_position + 1]
+        if bFileExists_bytes == b'\x00':
+            bFileExists = True
+            actual_position += 1
+            file_size = int.from_bytes(message[actual_position: actual_position + MAX_FILE_SIZE_LEN], byteorder='big')
+            actual_position += MAX_FILE_SIZE_LEN
+            port = int.from_bytes(message[actual_position: actual_position + MAX_PORT_SIZE], byteorder='big')
+
+        elif bFileExists_bytes == b'\xFF':
+            bFileExists = False
+            actual_position += 1
+            if message[actual_position: actual_position + MAX_FILE_SIZE_LEN + MAX_PORT_SIZE] != bytes(
+                            MAX_FILE_SIZE_LEN + MAX_PORT_SIZE):
+                raise Exception('file size and port are not filled with 0')
+            file_size = 0
+            port = 0
+
+        else:
+            raise Exception('Wrong file_exists encoding')
+
+        return request_id, bFileExists, file_size, port
+
+    def encrypted_response_download_file_decode(self, encrypted_message: bytes) -> (bytes, bool, int, int):
+        return self.response_download_file_decode(self.decrypt(encrypted_message))
 
 
 def _max_unsigned_int(bit_size: int) -> int:
