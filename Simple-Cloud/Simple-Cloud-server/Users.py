@@ -27,7 +27,7 @@ def add_user(username: str, password: str, user_database: dict = None):
 def check_user_existence(username: str, user_database: dict = None) -> bool:
     if user_database is None:
         user_database = _get_user_database()
-    if user_database.get(username) is not None:
+    if username in user_database:
         return True
     else:
         return False

@@ -1,7 +1,7 @@
 import json
 from enum import Enum
 import random
-import os
+import re
 import hashlib
 from SerpentCipherClassicalString import *
 
@@ -47,7 +47,8 @@ class Protocol:
         # session_id = message_bytes[0:64]
         if message_bytes[0:1] != MessageType.LOG_IN.value.to_bytes(1, byteorder='big'):
             raise Exception('Wrong message!')
-        username = str(message_bytes[1:65])
+        username = message_bytes[1:65].decode('utf-8')
+        username = re.sub(r'\W', "", username)
         return username
 
     @staticmethod
