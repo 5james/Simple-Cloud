@@ -44,6 +44,12 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                 elif message_type == MessageType.DOWNLOAD_FILE.value:
                     self.handle_download_file(request_id, message)
 
+                elif message_type == MessageType.DELETE_FILE.value:
+                    self.handle_delete_file(request_id, message)
+
+                else:
+                    break
+
     def auth(self) -> bool:
         req_0 = self.request.recv(Protocol.req_0_len())
         username = Protocol.hello_decode(req_0)
@@ -72,7 +78,6 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
             session_ids.add(session_id)
             self.session_id = session_id
         response = self.cipher_protocol.encrypted_auth_status_encode(True, self.session_id)
-        # print(response)
         self.request.sendall(response)
         self.user_fs = UserFS(username)
         return True
@@ -90,8 +95,6 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
             sock.listen(10)
             response = self.cipher_protocol.encrypted_response_request_list_files_encode(request_id, len(json_bytes),
                                                                                          sock.getsockname()[1])
-            # print(sock.getsockname()[1])
-            # print(response)
             self.request.sendall(response)
 
             conn, addr = sock.accept()
@@ -163,6 +166,12 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
 
         except FileDoesNotExistsException:
             self.request.sendall(self.cipher_protocol.encrypted_response_download_file_encode(request_id, False))
+
+    def handle_delete_file(self, request_id: bytes, message: bytes):
+        filename = self.cipher_protocol.request_delete_file_decode(message)
+        bDidDelete = self.user_fs.delete_file(filename)
+        response = self.cipher_protocol.encrypted_response_delete_file_encode(request_id, bDidDelete)
+        self.request.sendall(response)
 
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
@@ -261,8 +270,15 @@ def client(ip, port):
                 sock2.connect((HOST, port))
                 myfile = sock2.recv(2048)
                 myfile = cipher_protocol.decrypt(myfile)
-                print(myfile[:file_size])
+                # print(myfile[:file_size])
 
+        sock.sendall(cipher_protocol.encrypted_request_delete_file_encode(session_id, bytearray(
+            random.getrandbits(8) for i in range(64)), 'test4.txt'))
+
+        recv = sock.recv(1024)
+        request_id_new, bDidDelete = cipher_protocol.encrypted_response_delete_file_decode(recv)
+        # print(bDidDelete)
+        
         sock.close()
 
 

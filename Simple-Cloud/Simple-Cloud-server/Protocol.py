@@ -14,9 +14,12 @@ class MessageType(Enum):
     UPLOAD_FILE = 2
     GET_HASH = 3
     DOWNLOAD_FILE = 4
+    DELETE_FILE = 5
 
 
 # message_length_size_bit = 64
+
+
 # message_length_size_byte = 8
 MAX_USERNAME_SIZE = 64
 LEN_SESSION_ID = 64
@@ -483,6 +486,69 @@ class Protocol:
 
     def encrypted_response_download_file_decode(self, encrypted_message: bytes) -> (bytes, bool, int, int):
         return self.response_download_file_decode(self.decrypt(encrypted_message))
+
+    @staticmethod
+    def request_delete_file_encode(session_id: bytes, request_id: bytes, filename: str) -> bytes:
+        Protocol.check_session_id_len(session_id)
+        Protocol.check_request_id_len(request_id)
+        message = bytes()
+        message += Protocol.header_encode(session_id, request_id, MessageType.DELETE_FILE)
+        message += filename.encode('utf-8').ljust(MAX_FILENAME_SIZE, b'\x00')
+        return message
+
+    def encrypted_request_delete_file_encode(self, session_id: bytes, request_id: bytes, filename: str) -> bytes:
+        return self.encrypt(self.request_delete_file_encode(session_id, request_id, filename))
+
+    @staticmethod
+    def request_delete_file_decode(message: bytes) -> str:
+        filename_pos = HEADER_SIZE
+        filename_with_junk = message[filename_pos: filename_pos + MAX_FILENAME_SIZE].decode('utf-8')
+        filename = re.match(r'[\w +-/*,()\[\]&]*', filename_with_junk, re.M | re.I).group()
+        return filename
+
+    def encrypted_request_delete_file_decode(self, encrypted_message: bytes) -> str:
+        return self.request_delete_file_decode(self.decrypt(encrypted_message))
+
+    @staticmethod
+    def response_delete_file_encode(request_id: bytes, did_delete: bool) -> bytes:
+        Protocol.check_request_id_len(request_id)
+        message = bytes()
+        message += request_id
+        if did_delete:
+            message += b'\x00'
+        else:
+            message += b'\xFF'
+        return message
+
+    def encrypted_response_delete_file_encode(self, request_id: bytes, did_delete: bool) -> bytes:
+        return self.encrypt(self.response_delete_file_encode(request_id, did_delete))
+
+    @staticmethod
+    def response_delete_file_decode(message: bytes) -> (bytes, bool):
+        actual_position = 0
+        request_id = message[actual_position: actual_position + LEN_REQUEST_ID]
+        actual_position += LEN_REQUEST_ID
+        bDidDelete_bytes = message[actual_position: actual_position + 1]
+        if bDidDelete_bytes == b'\x00':
+            bDidDelete = True
+        elif bDidDelete_bytes == b'\xFF':
+            bDidDelete = False
+        else:
+            raise Exception('Wrong bool did_delete encoding')
+        return request_id, bDidDelete
+
+    def encrypted_response_delete_file_decode(self, encrypted_message: bytes) -> (bytes, bool):
+        return self.response_delete_file_decode(self.decrypt(encrypted_message))
+
+    @staticmethod
+    def check_session_id_len(session_id: bytes):
+        if len(session_id) != LEN_SESSION_ID:
+            raise Exception('Wrong session_id length')
+
+    @staticmethod
+    def check_request_id_len(request_id: bytes):
+        if len(request_id) != LEN_SESSION_ID:
+            raise Exception('Wrong request_id length')
 
 
 def _max_unsigned_int(bit_size: int) -> int:
