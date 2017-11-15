@@ -1,11 +1,14 @@
 import socket
-import threading
+import random
+import json
+import datetime
 import socketserver
 import os
 from DiffieHellman import DiffieHellman
-from Protocol import Protocol, MessageType
+from Protocol import *
 from SerpentCipherClassicalString import *
 import Users
+from UserFS import *
 
 session_ids_lock = threading.Condition()
 session_ids = set()
@@ -15,18 +18,18 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         bAuthSuccessful = self.auth()
         if bAuthSuccessful:
-            pass
-            # while True:
-            #     length = self.receive_message_len()
-            #     # check if client closed socket
-            #     if length == 0:
-            #         break
-            #     self.ack_message_len(length)
-            #     self.receive_message(length)
+            while True:
+                recv = self.request.recv(2048)
+                # check if client closed socket
+                if len(recv) == 0:
+                    break
+                message_type, request_id, message = self.cipher_protocol.encrypted_establish_message_type(recv)
+                if message_type == MessageType.LIST_FILES.value:
+                    self.handle_list_request(request_id)
 
     def auth(self) -> bool:
         req_0 = self.request.recv(Protocol.req_0_len())
-        username = Protocol.req_0_decode(req_0)
+        username = Protocol.hello_decode(req_0)
         # print(username)
         bUserExists = Users.check_user_existence(username)
         self.request.sendall(Protocol.username_status_encode(bUserExists))
@@ -54,62 +57,38 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
         response = self.cipher_protocol.encrypted_auth_status_encode(True, self.session_id)
         # print(response)
         self.request.sendall(response)
+        self.user_fs = UserFS(username)
         return True
 
+    def handle_list_request(self, request_id: bytes):
+        files = self.user_fs.list_all_files()
+        json_files = json.dumps(files, default=datetime_handler)
+        # json_bytes = self.cipher_protocol.encrypt(json_files.encode('utf-8'))
+        json_bytes = self.cipher_protocol.encrypt(json_files.encode('utf-8'))
 
+        HOST = socket.gethostbyname(socket.gethostname())
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        with sock:
+            sock.bind((HOST, 0))
+            sock.listen(10)
+            response = self.cipher_protocol.encrypted_response_request_list_files_encode(request_id, len(json_bytes),
+                                                                                         sock.getsockname()[1])
+            print(sock.getsockname()[1])
+            # print(response)
+            self.request.sendall(response)
 
-
-        # def receive_message(self, length: int):
-        #     data_recv = bytes(self.request.recv(length))
-        #     data_str = str(data_recv.decode('ascii'))
-        #     msg_type, data = Protocol.decoder(data_str)
-        #     if msg_type == MessageType.LOG_IN.value:
-        #         self.proceed_connecting(data)
-
-        # def receive_message_len(self) -> int:
-        #     data = bytes(self.request.recv(Protocol.get_message_size()))
-        #     try:
-        #         return int(data)
-        #     except:
-        #         return 0
-        #         # data = bytes()
-        #         # data_recv = bytes(self.request.recv(Protocol.get_message_size()))
-        #         # if len(data_recv) > 0:
-        #         #     data += data_recv
-        #         #     if len(data) < Protocol.get_message_size():
-        #         #         continue
-        #         #     else:
-        #         #         message = self.receive_message(int(data))
-        #         # elif len(data_recv) == 0:
-        #         #     break
-        #         # elif len(data_recv) < 0:
-        #         #     raise Exception('Socket error')
-
-        # def ack_message_len(self, length: int):
-        #     response = bytes("{}".format(length), 'ascii')
-        #     self.request.sendall(response)
-        #
-        # def proceed_connecting(self, data_json):
-        #     self.diffie_hellman = DiffieHellman()
-        #     self.diffie_hellman.generateKey(collaborator_key=data_json['key'])
-        #     message_len, message = Protocol.connect_encode(self.diffie_hellman.publicKey)
-        #     # send message_length
-        #     response_len = bytes("{}".format(message_len), 'ascii')
-        #     self.request.sendall(response_len)
-        #
-        #     # get ack
-        #     ack = bytes(self.request.recv(len(response_len)))
-        #     if ack != response_len:
-        #         raise Exception('bad ack')
-        #
-        #     response = bytes("{}".format(message), 'ascii')
-        #     self.request.sendall(response)
-        #
-        #     print(self.diffie_hellman.symmectricKey)
-
+            conn, addr = sock.accept()
+            with conn:
+                conn.sendall(json_bytes)
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
+
+
+def datetime_handler(x):
+    if isinstance(x, datetime.datetime):
+        return x.isoformat()
+    raise TypeError("Unknown type")
 
 
 def client(ip, port):
@@ -118,12 +97,12 @@ def client(ip, port):
 
         dh = DiffieHellman()
         username = 'johny'
-        req_0 = Protocol.req_0_encode(username)
+        req_0 = Protocol.hello_encode(username)
         sock.sendall(req_0)
 
         bUsernameExists = sock.recv(Protocol.username_status_len())
         usernameExists = Protocol.username_status_decode(bUsernameExists)
-        print(usernameExists)
+        # print(usernameExists)
 
         server_pubKey_bytes = sock.recv(Protocol.dh_len())
         server_pubKey = Protocol.dh_decode(server_pubKey_bytes)
@@ -136,32 +115,26 @@ def client(ip, port):
 
         sock.sendall(cipher_protocol.encrypted_passwd_encode('123456'))
 
-        recv = sock.recv(256)
+        recv = sock.recv(2048)
         bSuccess, session_id = cipher_protocol.encrypted_auth_status_decode(recv)
-        print(bSuccess)
-        print(session_id)
+        # print(bSuccess)
+        # print(session_id)
 
-        # message_len, message_connect = Protocol.connect_encode(dh.publicKey)
-        # sock.sendall(bytes(message_len, 'ascii'))
-        # ack = str(sock.recv(64), 'ascii')
-        # sock.sendall(bytes(message_connect, 'ascii'))
-        #
-        # response_len = str(sock.recv(64), 'ascii')
-        # sock.sendall(bytes(response_len, 'ascii'))
-        # response = str(sock.recv(int(response_len)), 'ascii')
-        # msg_type, response = Protocol.decoder(response)
-        # key = response['key']
-        # dh.generateKey(key)
-        # sym_key = dh.symmectricKey
-        # print(sym_key)
-        # print(response_key)
-        # print("Received: {}".format(response))
-        # sock.sendall(bytes(message, 'ascii'))
-        # response = str(sock.recv(1024), 'ascii')
-        # print("Received: {}".format(response))
-        # sock.sendall(bytes(message, 'ascii'))
-        # response = str(sock.recv(1024), 'ascii')
-        # print("Received: {}".format(response))
+        to_send = cipher_protocol.encrypted_request_list_files_encode(session_id, bytearray(
+            random.getrandbits(8) for i in range(64)))
+        # print(to_send)
+        sock.sendall(to_send)
+
+        recv = sock.recv(2048)
+        request_id, json_size, port = cipher_protocol.encrypted_response_request_list_files_decode(recv)
+        print(port)
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
+            HOST = socket.gethostbyname(socket.gethostname())
+            sock2.connect((HOST, port))
+            recv = sock2.recv(json_size)
+            print(cipher_protocol.decrypt(recv))
+            sock2.close()
+
         sock.close()
 
 

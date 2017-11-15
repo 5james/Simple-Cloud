@@ -285,13 +285,13 @@ def R(i, BHati, KHat):
     appropriately numbered subkey(s) from the 'KHat' list of 33 128-bit
     bitstrings."""
 
-    Obs.show("BHati", BHati, "(i=%2d) BHati" % i)
+    # Obs.show("BHati", BHati, "(i=%2d) BHati" % i)
 
     xored = xor(BHati, KHat[i])
-    Obs.show("xored", xored, "(i=%2d) xored" % i)
+    # Obs.show("xored", xored, "(i=%2d) xored" % i)
 
     SHati = SHat(i, xored)
-    Obs.show("SHati", SHati, "(i=%2d) SHati" % i)
+    # Obs.show("SHati", SHati, "(i=%2d) SHati" % i)
 
     if 0 <= i <= r - 2:
         BHatiPlus1 = LT(SHati)
@@ -299,7 +299,7 @@ def R(i, BHati, KHat):
         BHatiPlus1 = xor(SHati, KHat[r])
     else:
         raise ValueError("round %d is out of 0..%d range" % (i, r - 1))
-    Obs.show("BHatiPlus1", BHatiPlus1, "(i=%2d) BHatiPlus1" % i)
+    # Obs.show("BHatiPlus1", BHatiPlus1, "(i=%2d) BHatiPlus1" % i)
 
     return BHatiPlus1
 
@@ -310,7 +310,7 @@ def RInverse(i, BHatiPlus1, KHat):
     the appropriately numbered subkey(s) from the 'KHat' list of 33 128-bit
     bitstrings."""
 
-    Obs.show("BHatiPlus1", BHatiPlus1, "(i=%2d) BHatiPlus1" % i)
+    # Obs.show("BHatiPlus1", BHatiPlus1, "(i=%2d) BHatiPlus1" % i)
 
     if 0 <= i <= r - 2:
         SHati = LTInverse(BHatiPlus1)
@@ -318,13 +318,13 @@ def RInverse(i, BHatiPlus1, KHat):
         SHati = xor(BHatiPlus1, KHat[r])
     else:
         raise ValueError("round %d is out of 0..%d range" % (i, r - 1))
-    Obs.show("SHati", SHati, "(i=%2d) SHati" % i)
+    # Obs.show("SHati", SHati, "(i=%2d) SHati" % i)
 
     xored = SHatInverse(i, SHati)
-    Obs.show("xored", xored, "(i=%2d) xored" % i)
+    # Obs.show("xored", xored, "(i=%2d) xored" % i)
 
     BHati = xor(xored, KHat[i])
-    Obs.show("BHati", BHati, "(i=%2d) BHati" % i)
+    # Obs.show("BHati", BHati, "(i=%2d) BHati" % i)
 
     return BHati
 
@@ -335,16 +335,16 @@ def RBitslice(i, Bi, K):
     appropriately numbered subkey(s) from the 'K' list of 33 128-bit
     bitstrings."""
 
-    Obs.show("Bi", Bi, "(i=%2d) Bi" % i)
+    # Obs.show("Bi", Bi, "(i=%2d) Bi" % i)
 
     # 1. Key mixing
     xored = xor(Bi, K[i])
-    Obs.show("xored", xored, "(i=%2d) xored" % i)
+    # Obs.show("xored", xored, "(i=%2d) xored" % i)
 
     # 2. S Boxes
     Si = SBitslice(i, quadSplit(xored))
     # Input and output to SBitslice are both lists of 4 32-bit bitstrings
-    Obs.show("Si", Si, "(i=%2d) Si" % i, "tlb")
+    # Obs.show("Si", Si, "(i=%2d) Si" % i, "tlb")
 
     # 3. Linear Transformation
     if i == r - 1:
@@ -353,7 +353,7 @@ def RBitslice(i, Bi, K):
     else:
         BiPlus1 = quadJoin(LTBitslice(Si))
     # BIPlus1 is a 128-bit bitstring
-    Obs.show("BiPlus1", BiPlus1, "(i=%2d) BiPlus1" % i)
+    # Obs.show("BiPlus1", BiPlus1, "(i=%2d) BiPlus1" % i)
 
     return BiPlus1
 
@@ -364,7 +364,7 @@ def RBitsliceInverse(i, BiPlus1, K):
     B i). Use the appropriately numbered subkey(s) from the 'K' list of 33
     128-bit bitstrings."""
 
-    Obs.show("BiPlus1", BiPlus1, "(i=%2d) BiPlus1" % i)
+    # Obs.show("BiPlus1", BiPlus1, "(i=%2d) BiPlus1" % i)
 
     # 3. Linear Transformation
     if i == r - 1:
@@ -374,18 +374,18 @@ def RBitsliceInverse(i, BiPlus1, K):
         Si = LTBitsliceInverse(quadSplit(BiPlus1))
     # SOutput (same as LTInput) is a list of 4 32-bit bitstrings
 
-    Obs.show("Si", Si, "(i=%2d) Si" % i, "tlb")
+    # Obs.show("Si", Si, "(i=%2d) Si" % i, "tlb")
 
     # 2. S Boxes
     xored = SBitsliceInverse(i, Si)
     # SInput and SOutput are both lists of 4 32-bit bitstrings
 
-    Obs.show("xored", xored, "(i=%2d) xored" % i)
+    # Obs.show("xored", xored, "(i=%2d) xored" % i)
 
     # 1. Key mixing
     Bi = xor(quadJoin(xored), K[i])
 
-    Obs.show("Bi", Bi, "(i=%2d) Bi" % i)
+    # Obs.show("Bi", Bi, "(i=%2d) Bi" % i)
 
     return Bi
 
@@ -397,9 +397,9 @@ def encrypt(plainText, userKey):
     bitstring."""
 
     # noinspection PyTypeChecker
-    Obs.show("fnTitle", "encrypt", None, "tu")
-    Obs.show("plainText", plainText, "plainText")
-    Obs.show("userKey", userKey, "userKey")
+    # Obs.show("fnTitle", "encrypt", None, "tu")
+    # Obs.show("plainText", plainText, "plainText")
+    # Obs.show("userKey", userKey, "userKey")
 
     K, KHat = makeSubkeys(userKey)
 
@@ -409,7 +409,7 @@ def encrypt(plainText, userKey):
     # BHat is now _32 i.e. _r
     C = FP(BHat)
 
-    Obs.show("cipherText", C, "cipherText")
+    # Obs.show("cipherText", C, "cipherText")
 
     return C
 
@@ -421,9 +421,9 @@ def encryptBitslice(plainText, userKey):
     bitstring."""
 
     # noinspection PyTypeChecker
-    Obs.show("fnTitle", "encryptBitslice", None, "tu")
-    Obs.show("plainText", plainText, "plainText")
-    Obs.show("userKey", userKey, "userKey")
+    # Obs.show("fnTitle", "encryptBitslice", None, "tu")
+    # Obs.show("plainText", plainText, "plainText")
+    # Obs.show("userKey", userKey, "userKey")
 
     K, KHat = makeSubkeys(userKey)
 
@@ -432,7 +432,7 @@ def encryptBitslice(plainText, userKey):
         B = RBitslice(i, B, K)  # Produce B_i+1 from B_i
     # B is now _r
 
-    Obs.show("cipherText", B, "cipherText")
+    # Obs.show("cipherText", B, "cipherText")
 
     return B
 
@@ -444,9 +444,9 @@ def decrypt(cipherText, userKey):
     plaintext bitstring."""
 
     # noinspection PyTypeChecker
-    Obs.show("fnTitle", "decrypt", None, "tu")
-    Obs.show("cipherText", cipherText, "cipherText")
-    Obs.show("userKey", userKey, "userKey")
+    # Obs.show("fnTitle", "decrypt", None, "tu")
+    # Obs.show("cipherText", cipherText, "cipherText")
+    # Obs.show("userKey", userKey, "userKey")
 
     K, KHat = makeSubkeys(userKey)
 
@@ -456,7 +456,7 @@ def decrypt(cipherText, userKey):
     # BHat is now _0
     plainText = IPInverse(BHat)
 
-    Obs.show("plainText", plainText, "plainText")
+    # Obs.show("plainText", plainText, "plainText")
     return plainText
 
 
@@ -467,9 +467,9 @@ def decryptBitslice(cipherText, userKey):
     plaintext bitstring."""
 
     # noinspection PyTypeChecker
-    Obs.show("fnTitle", "decryptBitslice", None, "tu")
-    Obs.show("cipherText", cipherText, "cipherText")
-    Obs.show("userKey", userKey, "userKey")
+    # Obs.show("fnTitle", "decryptBitslice", None, "tu")
+    # Obs.show("cipherText", cipherText, "cipherText")
+    # Obs.show("userKey", userKey, "userKey")
 
     K, KHat = makeSubkeys(userKey)
 
@@ -478,7 +478,7 @@ def decryptBitslice(cipherText, userKey):
         B = RBitsliceInverse(i, B, K)  # Produce B_i from B_i+1
     # B is now _0
 
-    Obs.show("plainText", B, "plainText")
+    # Obs.show("plainText", B, "plainText")
     return B
 
 
@@ -497,7 +497,7 @@ def makeSubkeys(userKey):
     w = {}
     for i in range(-8, 0):
         w[i] = userKey[(i + 8) * 32:(i + 9) * 32]
-        Obs.show("wi", w[i], "(i=%2d) wi" % i)
+        # Obs.show("wi", w[i], "(i=%2d) wi" % i)
 
     # We expand these to a prekey w0 ... w131 with the affine recurrence
     for i in range(132):
@@ -505,7 +505,7 @@ def makeSubkeys(userKey):
             xor(w[i - 8], w[i - 5], w[i - 3], w[i - 1],
                 bitstring(phi, 32), bitstring(i, 32)),
             11)
-        Obs.show("wi", w[i], "(i=%2d) wi" % i)
+        # Obs.show("wi", w[i], "(i=%2d) wi" % i)
 
     # The round keys are now calculated from the prekeys using the S-boxes
     # in bitslice mode. Each k[i] is a 32-bit bitstring.
@@ -536,8 +536,8 @@ def makeSubkeys(userKey):
     for i in range(33):
         KHat.append(IP(K[i]))
 
-        Obs.show("Ki", K[i], "(i=%2d) Ki" % i)
-        Obs.show("KHati", KHat[i], "(i=%2d) KHati" % i)
+        # Obs.show("Ki", K[i], "(i=%2d) Ki" % i)
+        # Obs.show("KHati", KHat[i], "(i=%2d) KHati" % i)
 
     return K, KHat
 

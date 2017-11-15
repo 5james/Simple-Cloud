@@ -13,6 +13,7 @@ class UserFS:
     def __init__(self, username: str):
         # self.home_FS = open_fs(VIRTUAL_FILESYSTEM_DIR + username)
         self.home_OSFS = OSFS(VIRTUAL_FILESYSTEM_DIR + username)
+        self.lock = threading.Condition()
 
     def list_all_files(self) -> list:
         result_list = []
@@ -26,11 +27,12 @@ class UserFS:
         return result_list
 
     def get_file_as_bytes(self, file_path: str) -> bytes:
-        try:
-            file_bytes = self.home_OSFS.getbytes(file_path)
-            return file_bytes
-        except:
-            raise FileDoesNotExistsException('File {} does not exists'.format(file_path))
+        with self.lock:
+            try:
+                file_bytes = self.home_OSFS.getbytes(file_path)
+                return file_bytes
+            except:
+                raise FileDoesNotExistsException('File {} does not exists'.format(file_path))
 
     def hash_sha3_512(self, file_path: str):
         sha3_512 = hashlib.sha3_512()
@@ -38,11 +40,12 @@ class UserFS:
         return sha3_512.hexdigest()
 
     def save_file_from_bytes(self, file_path: str, file_bytes: bytes) -> bool:
-        try:
-            self.home_OSFS.setbytes(file_path, file_bytes)
-            return True
-        except TypeError:
-            return False
+        with self.lock:
+            try:
+                self.home_OSFS.setbytes(file_path, file_bytes)
+                return True
+            except TypeError:
+                return False
 
 
 if __name__ == "__main__":

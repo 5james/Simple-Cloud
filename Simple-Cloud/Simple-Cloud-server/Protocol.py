@@ -10,14 +10,18 @@ from SerpentCipherClassicalString import *
 
 class MessageType(Enum):
     LOG_IN = 0
+    LIST_FILES = 1
 
 
 # message_length_size_bit = 64
 # message_length_size_byte = 8
 MAX_LEN_USERNAME = 64
 LEN_SESSION_ID = 64
+LEN_REQUEST_ID = 64
 SECRET_LEN = 768
 SHA_512_LEN = 64
+MAX_JSON_SIZE = 8
+MAX_PORT_SIZE = 2
 
 
 class Protocol:
@@ -25,7 +29,7 @@ class Protocol:
         self.cipher = cipher
 
     @staticmethod
-    def req_0_encode(username: str) -> bytes:
+    def hello_encode(username: str) -> bytes:
         # if len(session_id) != LEN_SESSION_ID:
         #     raise Exception('Bad length of session_id')
         if len(username) > MAX_LEN_USERNAME:
@@ -41,7 +45,7 @@ class Protocol:
         return message
 
     @staticmethod
-    def req_0_decode(message_bytes: bytes) -> str:
+    def hello_decode(message_bytes: bytes) -> str:
         if len(message_bytes) != Protocol.req_0_len():
             raise Exception('Bad message length')
         # session_id = message_bytes[0:64]
@@ -153,6 +157,104 @@ class Protocol:
     def auth_status_len():
         return 1 + LEN_SESSION_ID
 
+    @staticmethod
+    def request_list_files_encode(session_id: bytes, request_id: bytes) -> bytes:
+        if len(session_id) != LEN_SESSION_ID or len(request_id) != LEN_REQUEST_ID:
+            raise Exception('Wrong session or request ID length')
+        message = bytes()
+        message += session_id
+        message += request_id
+        message += MessageType.LIST_FILES.value.to_bytes(1, byteorder='big')
+        return message
+
+    def encrypted_request_list_files_encode(self, session_id: bytes, request_id: bytes) -> bytes:
+        return self.cipher.encrypt_bytes(self.request_list_files_encode(session_id, request_id))
+
+    @staticmethod
+    def request_list_files_decode(message: bytes) -> bytes:
+        # if len(message) != Protocol.request_list_files_len():
+        #     raise Exception('Wrong message length')
+        actual_position = 0
+        session_id = message[actual_position:LEN_SESSION_ID]
+        actual_position += LEN_SESSION_ID
+        request_id = message[actual_position:actual_position + LEN_REQUEST_ID]
+        actual_position += LEN_REQUEST_ID
+        message_type = int.from_bytes(message[actual_position: actual_position + 1], byteorder='big')
+
+        if message_type != MessageType.LIST_FILES.value:
+            raise Exception('Wrong message to decode')
+        return request_id
+
+    def encrypted_request_list_files_decode(self, encrypted_message: bytes) -> bytes:
+        return self.request_list_files_decode(self.cipher.decrypt_bytes(encrypted_message))
+
+    @staticmethod
+    def request_list_files_len():
+        return LEN_SESSION_ID + LEN_REQUEST_ID + 1
+
+    @staticmethod
+    def response_request_list_files_encode(request_id: bytes, size_in_bytes: int, port: int) -> bytes:
+        if len(request_id) != LEN_REQUEST_ID:
+            raise Exception('Wrong request ID length')
+        message = bytes()
+        message += request_id
+
+        try:
+            message += size_in_bytes.to_bytes(MAX_JSON_SIZE, byteorder='big', signed=False)
+        except OverflowError:
+            raise Exception('Too large data to send')
+
+        try:
+            message += port.to_bytes(MAX_PORT_SIZE, byteorder='big', signed=False)
+        except OverflowError:
+            raise Exception('Too large data to send')
+
+        return message
+
+    def encrypted_response_request_list_files_encode(self, request_id: bytes, size_in_bytes: int, port: int) -> bytes:
+        return self.cipher.encrypt_bytes(self.response_request_list_files_encode(request_id, size_in_bytes, port))
+
+    @staticmethod
+    def response_request_list_files_decode(message: bytes) -> (bytes, int, int):
+        # if len(message) != Protocol.response_request_list_files_len():
+        #     raise Exception('Wrong message length')
+        actual_position = 0
+        request_id = message[actual_position: LEN_REQUEST_ID]
+        actual_position += LEN_REQUEST_ID
+        json_size = int.from_bytes(message[actual_position: actual_position + MAX_JSON_SIZE], byteorder='big')
+        actual_position += MAX_JSON_SIZE
+        port = int.from_bytes(message[actual_position: actual_position + MAX_PORT_SIZE], byteorder='big')
+        return request_id, json_size, port
+
+    def encrypted_response_request_list_files_decode(self, encrypted_message: bytes) -> (bytes, int, int):
+        return self.response_request_list_files_decode(self.cipher.decrypt_bytes(encrypted_message))
+
+    @staticmethod
+    def response_request_list_files_len():
+        return LEN_REQUEST_ID + MAX_JSON_SIZE + MAX_PORT_SIZE
+
+    @staticmethod
+    def establish_message_type(message: bytes) -> (MessageType, bytes, bytes):
+        """
+
+        :param message: decrypted message
+        :return MessageType
+        :return request_id
+        :return decrypted message
+        """
+        msg_type_position = LEN_REQUEST_ID + LEN_SESSION_ID
+        message_type = int.from_bytes(message[msg_type_position: msg_type_position + 1], byteorder='big')
+        return message_type, message[LEN_SESSION_ID: LEN_SESSION_ID + LEN_REQUEST_ID], message
+
+    def encrypted_establish_message_type(self, encrypted_message: bytes) -> (MessageType, bytes, bytes):
+        return self.establish_message_type(self.cipher.decrypt_bytes(encrypted_message))
+
+    def encrypt(self, message: bytes) -> bytes:
+        return self.cipher.encrypt_bytes(message)
+
+    def decrypt(self, message: bytes) -> bytes:
+        return self.cipher.decrypt_bytes(message)
+
         # @staticmethod
         # def dh_1_encode(secret: bytes) -> bytes:
         #     return secret
@@ -240,9 +342,9 @@ def _max_unsigned_int(bit_size: int) -> int:
 if __name__ == "__main__":
     session_id = bytearray(random.getrandbits(8) for i in range(64))
     username = 'james'
-    m1 = Protocol.req_0_encode(username)
+    m1 = Protocol.hello_encode(username)
     # print(m1)
     print(len(m1) == Protocol.req_0_len())
-    username_2 = Protocol.req_0_decode(m1)
+    username_2 = Protocol.hello_decode(m1)
     if username == username:
         print('OK')
