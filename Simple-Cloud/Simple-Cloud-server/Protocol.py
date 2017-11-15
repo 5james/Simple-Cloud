@@ -3,6 +3,7 @@ from enum import Enum
 import random
 import os
 import hashlib
+from SerpentCipherClassicalString import *
 
 
 # TODO: get exceptions right
@@ -20,6 +21,9 @@ SHA_512_LEN = 64
 
 
 class Protocol:
+    def __init__(self, cipher: SerpentCipherClassicalString):
+        self.cipher = cipher
+
     @staticmethod
     def req_0_encode(username: str) -> bytes:
         # if len(session_id) != LEN_SESSION_ID:
@@ -96,11 +100,17 @@ class Protocol:
         pwd_sha_512 = hashlib.sha3_512(password.encode('utf-8')).digest()
         return pwd_sha_512
 
+    def encrypted_passwd_encode(self, password: str) -> bytes:
+        return self.cipher.encrypt_bytes(self.passwd_encode(password))
+
     @staticmethod
     def passwd_decode(password_sha_512_bytes: bytes) -> bytes:
         if len(password_sha_512_bytes) != Protocol.passwd_len():
             raise Exception('Bad password length')
         return password_sha_512_bytes
+
+    def encrypted_passwd_decode(self, encrypted_password_sha_512_bytes: bytes) -> bytes:
+        return self.passwd_decode(self.cipher.decrypt_bytes(encrypted_password_sha_512_bytes))
 
     @staticmethod
     def passwd_len():
@@ -118,10 +128,13 @@ class Protocol:
         message += session_id
         return message
 
+    def encrypted_auth_status_encode(self, auth_success: bool, session_id: bytes) -> bytes:
+        return self.cipher.encrypt_bytes(self.auth_status_encode(auth_success, session_id))
+
     @staticmethod
     def auth_status_decode(message: bytes) -> (bool, bytes):
-        if len(message) != Protocol.auth_status_len():
-            raise Exception('Wrong message length')
+        # if len(message) != Protocol.auth_status_len():
+        #     raise Exception('Wrong message length')
         auth_status_byte = message[0:1]
         if auth_status_byte == b'\x00':
             auth_status = True
@@ -131,6 +144,9 @@ class Protocol:
             raise Exception('Wrong login status')
         session_id = message[1:65]
         return auth_status, session_id
+
+    def encrypted_auth_status_decode(self, encrypted_message: bytes) -> (bool, bytes):
+        return self.auth_status_decode(self.cipher.decrypt_bytes(encrypted_message))
 
     @staticmethod
     def auth_status_len():

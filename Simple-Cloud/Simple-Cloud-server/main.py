@@ -1,35 +1,62 @@
 import socket
 import threading
 import socketserver
-import random
+import os
 from DiffieHellman import DiffieHellman
 from Protocol import Protocol, MessageType
+from SerpentCipherClassicalString import *
+import Users
+
+session_ids_lock = threading.Condition()
+session_ids = set()
 
 
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
-        self.auth()
-        # while True:
-        #     length = self.receive_message_len()
-        #     # check if client closed socket
-        #     if length == 0:
-        #         break
-        #     self.ack_message_len(length)
-        #     self.receive_message(length)
+        bAuthSuccessful = self.auth()
+        if bAuthSuccessful:
+            pass
+            # while True:
+            #     length = self.receive_message_len()
+            #     # check if client closed socket
+            #     if length == 0:
+            #         break
+            #     self.ack_message_len(length)
+            #     self.receive_message(length)
 
-    def auth(self):
+    def auth(self) -> bool:
         req_0 = self.request.recv(Protocol.req_0_len())
         username = Protocol.req_0_decode(req_0)
-        print(username)
-        # check if username is OK
-        self.request.sendall(Protocol.username_status_encode(True))
-
-        self.dh = DiffieHellman()
-        self.request.sendall(Protocol.dh_encode(self.dh.publicKey))
+        # print(username)
+        bUserExists = Users.check_user_existence(username)
+        self.request.sendall(Protocol.username_status_encode(bUserExists))
+        if not bUserExists:
+            return False
+        dh = DiffieHellman()
+        self.request.sendall(Protocol.dh_encode(dh.publicKey))
 
         client_pubKey_bytes = self.request.recv(Protocol.dh_len())
         client_pubKey = Protocol.dh_decode(client_pubKey_bytes)
-        self.dh.generateKey(client_pubKey)
+        dh.generateKey(client_pubKey)
+        cipher = SerpentCipherClassicalString(BitArray(bytes=dh.symmectricKey).hex)
+        self.cipher_protocol = Protocol(cipher)
+
+        pwd = self.cipher_protocol.encrypted_passwd_decode(self.request.recv(256))
+        bPasswordIsCorrect = Users.check_user_password(username, pwd)
+        if not bPasswordIsCorrect:
+            return False
+        with session_ids_lock:
+            session_id = os.urandom(64)
+            while session_id in session_ids:
+                session_id = os.urandom(64)
+            session_ids.add(session_id)
+            self.session_id = session_id
+        response = self.cipher_protocol.encrypted_auth_status_encode(True, self.session_id)
+        # print(response)
+        self.request.sendall(response)
+        return True
+
+
 
 
         # def receive_message(self, length: int):
@@ -90,7 +117,7 @@ def client(ip, port):
         sock.connect((ip, port))
 
         dh = DiffieHellman()
-        username = 'james'
+        username = 'johny'
         req_0 = Protocol.req_0_encode(username)
         sock.sendall(req_0)
 
@@ -104,6 +131,15 @@ def client(ip, port):
         sock.sendall(Protocol.dh_encode(dh.publicKey))
 
         dh.generateKey(server_pubKey)
+        cipher = SerpentCipherClassicalString(BitArray(bytes=dh.symmectricKey).hex)
+        cipher_protocol = Protocol(cipher)
+
+        sock.sendall(cipher_protocol.encrypted_passwd_encode('123456'))
+
+        recv = sock.recv(256)
+        bSuccess, session_id = cipher_protocol.encrypted_auth_status_decode(recv)
+        print(bSuccess)
+        print(session_id)
 
         # message_len, message_connect = Protocol.connect_encode(dh.publicKey)
         # sock.sendall(bytes(message_len, 'ascii'))

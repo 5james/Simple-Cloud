@@ -48,7 +48,7 @@ class UserFS:
 if __name__ == "__main__":
     johny = UserFS('johny')
     print(johny.list_all_files())
-    test_bytes = b'321 321 321'
+    test_bytes = b'123456'
     print(johny.save_file_from_bytes('test.txt', test_bytes))
     print(johny.get_file_as_bytes('test.txt') == test_bytes)
     print(johny.hash_sha3_512('test.txt'))
