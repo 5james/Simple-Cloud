@@ -1234,7 +1234,7 @@ if __name__ == "__main__":
     # if decrypted == plainText:
     #     print('OK')
     textToEncrypt = '100100000000000000000000000000001001000000000000000000000000000011'
-    textToEncrypt = '00000000000000000000000000000000'
+    # textToEncrypt = '00000000000000000000000000000000'
     s = SerpentCipherClassicalString('0000000000000000000000000000000000000000000000000000000000000000')
     # tmp = s.encrypt('100100000000000000000000000000001010')
     # c = BitArray(hex='100100000000000000000000000000001010')
@@ -1248,5 +1248,5 @@ if __name__ == "__main__":
     encrypted = s.encrypt_bytes(textToEncryptBytes)
     print(">>>", BitArray(bytes=encrypted).hex)
     decrypted = s.decrypt_bytes(encrypted)
-    # print(BitArray(bytes=decrypted).hex)
+    print(BitArray(bytes=decrypted).hex)
     # print(textToEncrypt)

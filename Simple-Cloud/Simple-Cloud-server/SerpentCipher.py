@@ -79,14 +79,14 @@ class SerpentCipher:
             i2 = int.from_bytes(chunk.bytes[4:8], byteorder='big')
             i3 = int.from_bytes(chunk.bytes[8:12], byteorder='big')
             i4 = int.from_bytes(chunk.bytes[12:16], byteorder='big')
-            to_encrypt = (c_uint * 4)(*[i1, i2, i3, i4])
+            to_encrypt = (c_uint * 4)(*[i4, i3, i2, i1])
             ciphertext = (c_uint * 4)(*[0, 0, 0, 0])
             rc = SerpentLib.blockEncrypt(byref(cipherI), byref(self.keyInstanceEncrypt), to_encrypt, 128, ciphertext)
             if rc < 0:
                 raise Exception('Block Encrypt Error')
             encrypted = bytes()
             for i in reversed(range(4)):
-                print(ciphertext[i])
+                # print(ciphertext[i])
                 encrypted += ciphertext[i].to_bytes(4, byteorder='big')
             encrypted_chunks += encrypted
         return encrypted_chunks
@@ -119,8 +119,8 @@ class SerpentCipher:
             i3 = int.from_bytes(chunk.bytes[4:8], byteorder='big')
             i4 = int.from_bytes(chunk.bytes[0:4], byteorder='big')
             ciphertext = (c_uint * 4)(*[i1, i2, i3, i4])
-            for i in range(4):
-                print(ciphertext[i])
+            # for i in range(4):
+            #     print(ciphertext[i])
             text = (c_uint * 4)(*[0, 0, 0, 0])
             rc = SerpentLib.blockDecrypt(byref(cipherI), byref(self.keyInstanceDecrypt), ciphertext, 128, text)
             if rc < 0:
@@ -134,8 +134,9 @@ class SerpentCipher:
 
 
 if __name__ == "__main__":
-    textToEncrypt = '00000000000000000000000000000000'
+    textToEncrypt = '100100000000000000000000000000001001000000000000000000000000000011'
     textToEncryptBytes = bytes(BitArray(hex=textToEncrypt).bytes)
+    print(BitArray(bytes=textToEncryptBytes).hex)
     s = SerpentCipher('0000000000000000000000000000000000000000000000000000000000000000')
     encrypted = s.encrypt_bytes(textToEncryptBytes)
     print(BitArray(bytes=encrypted).hex)
