@@ -19,4 +19,13 @@
     <string name="title_activity_main">MKOI 17Z</string>
     <string name="action_settings">Settings</string>
     <string name="section_format">Hello World from section: %1$d</string>
+
+
+    <string name="refresh_button">Refresh</string>
+    <string name="download_button">Download</string>
+    <string name="delete_button">Delete file</string>
+    <string name="upload_button">Upload file</string>
+    <string name="hash_button">Check file hash</string>
+    <string name="signout_button">Sign out</string>
+
 </resources>
