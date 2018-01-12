@@ -61,11 +61,14 @@ class SerpentCipherClassicalString:
         b = BitArray(bytes=bytes_to_encrypt)
         chunks = [b[i:i + BITS_IN_SINGLE_CHUNK] for i in range(0, len(b), BITS_IN_SINGLE_CHUNK)]
         encrypted_chunks = []
+        print(chunks)
         for chunk in chunks:
             encrypted_chunks.append(encrypt(convertToBitstring(chunk.hex, BITS_IN_SINGLE_CHUNK), self.userKey))
         result = bytes()
         for item in encrypted_chunks:
+            print(encrypted_chunks)
             result += bytes(BitArray(hex=bitstring2hexstring(item)).bytes)
+        print(result)
         return result
 
     # def encrypt(self, bitstring, number_of_bits_in_single_chunk=128) -> [str]:
@@ -1209,29 +1212,30 @@ def convertToBitstring(input_data, num_bits):
 
 
 if __name__ == "__main__":
-    textToEncrypt = '10010000000000000000000000000000'
-    # 00010000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-    # 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000001000
-    myKey = '0000000000000000000000000000000000000000000000000000000000000001'
-    bitsInKey = keyLengthInBitsOf(myKey)
-    rawKey = convertToBitstring(myKey, bitsInKey)
-    # print(bytes.fromhex(myKey))
-    # print(str(binascii.unhexlify(myKey)))
-    # c = BitArray(hex=myKey)
-    # print(c.bin)
-    userKey = makeLongKey(rawKey)
-    plainText = convertToBitstring(textToEncrypt, 128)
-    # print(">>> " + plainText)
-    cipherText = encrypt(plainText, userKey)
-    decrypted = decrypt(cipherText, userKey)
-
-    print(bitstring2hexstring(cipherText))
-    print(plainText)
-    print(decrypted)
-    if decrypted == plainText:
-        print('OK')
+    # textToEncrypt = '10010000000000000000000000000000'
+    # # 00010000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    # # 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000001000
+    # myKey = '0000000000000000000000000000000000000000000000000000000000000001'
+    # bitsInKey = keyLengthInBitsOf(myKey)
+    # rawKey = convertToBitstring(myKey, bitsInKey)
+    # # print(bytes.fromhex(myKey))
+    # # print(str(binascii.unhexlify(myKey)))
+    # # c = BitArray(hex=myKey)
+    # # print(c.bin)
+    # userKey = makeLongKey(rawKey)
+    # plainText = convertToBitstring(textToEncrypt, 128)
+    # # print(">>> " + plainText)
+    # cipherText = encrypt(plainText, userKey)
+    # decrypted = decrypt(cipherText, userKey)
+    #
+    # print(bitstring2hexstring(cipherText))
+    # print(plainText)
+    # print(decrypted)
+    # if decrypted == plainText:
+    #     print('OK')
     textToEncrypt = '100100000000000000000000000000001001000000000000000000000000000011'
-    s = SerpentCipherClassicalString('0000000000000000000000000000000000000000000000000000000000000001')
+    textToEncrypt = '00000000000000000000000000000000'
+    s = SerpentCipherClassicalString('0000000000000000000000000000000000000000000000000000000000000000')
     # tmp = s.encrypt('100100000000000000000000000000001010')
     # c = BitArray(hex='100100000000000000000000000000001010')
     # tmp2 = s.encrypt_bytes(bytes(c.bytes))
@@ -1242,7 +1246,7 @@ if __name__ == "__main__":
 
     textToEncryptBytes = bytes(BitArray(hex=textToEncrypt).bytes)
     encrypted = s.encrypt_bytes(textToEncryptBytes)
-    print(BitArray(bytes=encrypted).hex)
+    print(">>>", BitArray(bytes=encrypted).hex)
     decrypted = s.decrypt_bytes(encrypted)
-    print(BitArray(bytes=decrypted).hex)
-    print(textToEncrypt)
+    # print(BitArray(bytes=decrypted).hex)
+    # print(textToEncrypt)
