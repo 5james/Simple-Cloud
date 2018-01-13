@@ -7,6 +7,7 @@ import os
 from DiffieHellman import DiffieHellman
 from Protocol import *
 from SerpentCipherClassicalString import *
+from SerpentCipher import *
 import Users
 from UserFS import *
 
@@ -49,7 +50,8 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
 
         self.request.sendall(Protocol.res_dh_encode(dh.publicKey))
         dh.generateKey(clientSecret)
-        cipher = SerpentCipherClassicalString(BitArray(bytes=dh.symmectricKey).hex)
+        # cipher = SerpentCipherClassicalString(BitArray(bytes=dh.symmectricKey).hex)
+        cipher = SerpentCipher(BitArray(bytes=dh.symmectricKey).hex)
         self.cipher_protocol = Protocol(cipher)
 
         authSuccess = False

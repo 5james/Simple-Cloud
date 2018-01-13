@@ -53,28 +53,28 @@ __declspec(dllexport) int makeKey(keyInstance *key, BYTE direction, int keyLen,
         direction != DIR_DECRYPT)
         return BAD_KEY_DIR;
 
-    if (keyLen>256 || keyLen<1)
+    if (keyLen > 256 || keyLen < 1)
         return BAD_KEY_MAT;
 
     key->direction = direction;
     key->keyLen = keyLen;
-    strncpy(key->keyMaterial, keyMaterial, MAX_KEY_SIZE + 1);
+    strncpy_s(key->keyMaterial, MAX_KEY_SIZE + 1, keyMaterial, MAX_KEY_SIZE + 1);
 
     rc = serpent_convert_from_string(keyLen, keyMaterial, key->key);
     if (rc <= 0)
         return BAD_KEY_MAT;
 
-    for (i = 0; i<keyLen / 32; i++)
+    for (i = 0; i < keyLen / 32; i++)
         w[i] = key->key[i];
-    if (keyLen<256)
+    if (keyLen < 256)
         w[i] = (key->key[i] & ((1L << ((keyLen & 31))) - 1)) | (1L << ((keyLen & 31)));
-    for (i++; i<8; i++)
+    for (i++; i < 8; i++)
         w[i] = 0;
-    for (i = 8; i<16; i++)
+    for (i = 8; i < 16; i++)
         w[i] = ROL(w[i - 8] ^ w[i - 5] ^ w[i - 3] ^ w[i - 1] ^ PHI ^ (i - 8), 11);
-    for (i = 0; i<8; i++)
+    for (i = 0; i < 8; i++)
         w[i] = w[i + 8];
-    for (i = 8; i<132; i++)
+    for (i = 8; i < 132; i++)
         w[i] = ROL(w[i - 8] ^ w[i - 5] ^ w[i - 3] ^ w[i - 1] ^ PHI^i, 11);
 
     RND03(w[0], w[1], w[2], w[3], k[0], k[1], k[2], k[3]);
@@ -112,7 +112,7 @@ __declspec(dllexport) int makeKey(keyInstance *key, BYTE direction, int keyLen,
     RND03(w[128], w[129], w[130], w[131], k[128], k[129], k[130], k[131]);
 
     for (i = 0; i <= 32; i++)
-        for (j = 0; j<4; j++)
+        for (j = 0; j < 4; j++)
             key->subkeys[i][j] = k[4 * i + j];
 
     return TRUE;
@@ -159,7 +159,7 @@ __declspec(dllexport) int blockEncrypt(cipherInstance *cipher,
     switch (cipher->mode)
     {
     case MODE_ECB:
-        for (b = 0; b<inputLen; b += 128, input += 16, outBuffer += 16)
+        for (b = 0; b < inputLen; b += 128, input += 16, outBuffer += 16)
             serpent_encrypt(input, outBuffer, key->subkeys);
         return inputLen;
 
@@ -168,7 +168,7 @@ __declspec(dllexport) int blockEncrypt(cipherInstance *cipher,
         t[1] = ((unsigned int*)cipher->IV)[1];
         t[2] = ((unsigned int*)cipher->IV)[2];
         t[3] = ((unsigned int*)cipher->IV)[3];
-        for (b = 0; b<inputLen; b += 128, input += 16, outBuffer += 16)
+        for (b = 0; b < inputLen; b += 128, input += 16, outBuffer += 16)
         {
             t[0] ^= ((unsigned int*)input)[0];
             t[1] ^= ((unsigned int*)input)[1];
@@ -191,12 +191,12 @@ __declspec(dllexport) int blockEncrypt(cipherInstance *cipher,
         t[1] = ((unsigned int*)cipher->IV)[1];
         t[2] = ((unsigned int*)cipher->IV)[2];
         t[3] = ((unsigned int*)cipher->IV)[3];
-        for (b = 0; b<inputLen; b += 8, input++, outBuffer++)
+        for (b = 0; b < inputLen; b += 8, input++, outBuffer++)
         {
             int bit;
             int bytedata = (input[0]) & 0xFF;
 
-            for (bit = 0; bit<8; bit++)
+            for (bit = 0; bit < 8; bit++)
             {
                 unsigned int tt[4];
 
@@ -236,7 +236,7 @@ __declspec(dllexport) int blockDecrypt(cipherInstance *cipher,
     switch (cipher->mode)
     {
     case MODE_ECB:
-        for (b = 0; b<inputLen; b += 128, input += 16, outBuffer += 16)
+        for (b = 0; b < inputLen; b += 128, input += 16, outBuffer += 16)
             serpent_decrypt(input, outBuffer, key->subkeys);
         return inputLen;
 
@@ -245,7 +245,7 @@ __declspec(dllexport) int blockDecrypt(cipherInstance *cipher,
         t[1] = ((unsigned int*)cipher->IV)[1];
         t[2] = ((unsigned int*)cipher->IV)[2];
         t[3] = ((unsigned int*)cipher->IV)[3];
-        for (b = 0; b<inputLen; b += 128, input += 16, outBuffer += 16)
+        for (b = 0; b < inputLen; b += 128, input += 16, outBuffer += 16)
         {
             serpent_decrypt(input, outBuffer, key->subkeys);
             ((unsigned int*)outBuffer)[0] ^= t[0];
@@ -268,13 +268,13 @@ __declspec(dllexport) int blockDecrypt(cipherInstance *cipher,
         t[1] = ((unsigned int*)cipher->IV)[1];
         t[2] = ((unsigned int*)cipher->IV)[2];
         t[3] = ((unsigned int*)cipher->IV)[3];
-        for (b = 0; b<inputLen; b += 8, input++, outBuffer++)
+        for (b = 0; b < inputLen; b += 8, input++, outBuffer++)
         {
             int bit;
             int bytedata = (input[0]) & 0xFF;
             int outdata = 0;
 
-            for (bit = 0; bit<8; bit++)
+            for (bit = 0; bit < 8; bit++)
             {
                 unsigned int tt[4];
 
@@ -547,34 +547,34 @@ int serpent_convert_from_string(int len, char *str, unsigned int *val)
     int is, iv;
     int slen = min(strlen(str), (len + 3) / 4);
 
-    if (len<0)
+    if (len < 0)
         return -1;		/* Error!!! */
 
-    if (len>slen * 4 || len<slen * 4 - 3)
+    if (len > slen * 4 || len < slen * 4 - 3)
         return -1;		/* Error!!! */
 
-    for (is = 0; is<slen; is++)
-        if (((str[is]<'0') || (str[is]>'9')) &&
-            ((str[is]<'A') || (str[is]>'F')) &&
-            ((str[is]<'a') || (str[is]>'f')))
+    for (is = 0; is < slen; is++)
+        if (((str[is] < '0') || (str[is] > '9')) &&
+            ((str[is] < 'A') || (str[is] > 'F')) &&
+            ((str[is] < 'a') || (str[is] > 'f')))
             return -1;	/* Error!!! */
 
     for (is = slen, iv = 0; is >= 8; is -= 8, iv++)
     {
         unsigned int t;
-        sscanf(&str[is - 8], "%08lX", &t);
+        sscanf_s(&str[is - 8], "%08lX", &t);
         val[iv] = t;
     }
-    if (is>0)
+    if (is > 0)
     {
         char tmp[10];
         unsigned int t;
-        strncpy(tmp, str, is);
+        strncpy_s(tmp, 10, str, is);
         tmp[is] = 0;
-        sscanf(tmp, "%08lX", &t);
+        sscanf_s(tmp, "%08lX", &t);
         val[iv++] = t;
     }
-    for (; iv<(len + 31) / 32; iv++)
+    for (; iv < (len + 31) / 32; iv++)
         val[iv] = 0;
     return iv;
 }
@@ -584,22 +584,22 @@ char *serpent_convert_to_string(int len, unsigned int val[8], char *str)
 {
     int i;
 
-    if (len<0)
+    if (len < 0)
         return (char *)-1;		/* Error!!! */
 
     str[0] = 0;
     i = len / 32;
-    if (len & 31>0)
+    if (len & 31 > 0)
     {
         char tmp[10];
         //sprintf(tmp, "%08lX", val[i]&(((len&31)<<1)-1));
-        strcat(str, &tmp[8 - (((len & 31) + 3) / 4)]);
+        strcat_s(str, (10 - 8 - (((len & 31) + 3) / 4)), &tmp[8 - (((len & 31) + 3) / 4)]);
     }
     for (i--; i >= 0; i--)
     {
         char tmp[10];
         //sprintf(tmp, "%08lX", val[i]);
-        strcat(str, tmp);
+        strcat_s(str, 10, tmp);
     }
     return str;
 }

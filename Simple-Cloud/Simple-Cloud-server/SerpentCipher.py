@@ -24,7 +24,7 @@ class keyInstance(Structure):
     _fields_ = [("direction", c_byte),
                 ("keyLen", c_int),
                 ("keyMaterial", c_char * (MAX_KEY_SIZE + 1)),
-                ("key", c_uint),
+                ("key", (c_uint * 8)),
                 ("subkeys", (c_uint * 33) * 4)]
 
 
@@ -137,9 +137,10 @@ if __name__ == "__main__":
     textToEncrypt = '100100000000000000000000000000001001000000000000000000000000000011'
     textToEncryptBytes = bytes(BitArray(hex=textToEncrypt).bytes)
     print(BitArray(bytes=textToEncryptBytes).hex)
-    s = SerpentCipher('0000000000000000000000000000000000000000000000000000000000000000')
+    s = SerpentCipher('0000000000000000000000000000000000000000000000000000000000000000', mode=MODE_CBC, iv='10010000000000000000000000000000')
     encrypted = s.encrypt_bytes(textToEncryptBytes)
     print(BitArray(bytes=encrypted).hex)
 
     decrypted = s.decrypt_bytes(encrypted)
     print(BitArray(bytes=decrypted).hex)
+
