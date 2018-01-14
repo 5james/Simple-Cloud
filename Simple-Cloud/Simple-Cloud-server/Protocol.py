@@ -4,6 +4,7 @@ import random
 import re
 import hashlib
 from SerpentCipherClassicalString import *
+from SerpentCipher import *
 
 
 # TODO: get exceptions right
@@ -34,7 +35,7 @@ HEADER_SIZE = 1
 
 
 class Protocol:
-    def __init__(self, cipher: SerpentCipherClassicalString):
+    def __init__(self, cipher: SerpentCipher):
         self.cipher = cipher
 
     # @staticmethod

@@ -61,14 +61,14 @@ class SerpentCipherClassicalString:
         b = BitArray(bytes=bytes_to_encrypt)
         chunks = [b[i:i + BITS_IN_SINGLE_CHUNK] for i in range(0, len(b), BITS_IN_SINGLE_CHUNK)]
         encrypted_chunks = []
-        print(chunks)
+        # print(chunks)
         for chunk in chunks:
             encrypted_chunks.append(encrypt(convertToBitstring(chunk.hex, BITS_IN_SINGLE_CHUNK), self.userKey))
         result = bytes()
         for item in encrypted_chunks:
-            print(encrypted_chunks)
+            # print(encrypted_chunks)
             result += bytes(BitArray(hex=bitstring2hexstring(item)).bytes)
-        print(result)
+        # print(result)
         return result
 
     # def encrypt(self, bitstring, number_of_bits_in_single_chunk=128) -> [str]:

@@ -74,7 +74,6 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle_list_request(self, message: bytes):
         files = self.user_fs.list_all_files()
         json_files = json.dumps(files, default=datetime_handler)
-        # json_bytes = self.cipher_protocol.encrypt(json_files.encode('utf-8'))
         json_bytes = self.cipher_protocol.encrypt(json_files.encode('utf-8'))
 
         HOST = socket.gethostbyname(socket.gethostname())
@@ -82,7 +81,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
         with sock:
             sock.bind((HOST, 0))
             sock.listen(10)
-            response = self.cipher_protocol.encrypted_response_request_list_files_encode(len(json_bytes),
+            response = self.cipher_protocol.encrypted_response_request_list_files_encode(len(json_files),
                                                                                          sock.getsockname()[1])
             self.request.sendall(response)
 
@@ -184,7 +183,7 @@ def client(ip, port):
         recv = sock.recv(SECRET_LEN)
         secret = Protocol.res_dh_decode(recv)
         dh.generateKey(secret)
-        cipher = SerpentCipherClassicalString(BitArray(bytes=dh.symmectricKey).hex)
+        cipher = SerpentCipher(BitArray(bytes=dh.symmectricKey).hex)
         cipher_protocol = Protocol(cipher)
         auth_msg = cipher_protocol.encrypted_authentication_encode('johny', '123456')
         sock.sendall(auth_msg)
@@ -197,13 +196,17 @@ def client(ip, port):
         sock.sendall(to_send)
         recv = sock.recv(2048)
         json_size, port = cipher_protocol.encrypted_response_request_list_files_decode(recv)
+        if json_size % 128 != 0:
+            json_size_to_recv = json_size + (128 - (json_size % 128))
+        else:
+            json_size_to_recv = json_size
         # print(port)
         if port != 0:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
                 HOST = socket.gethostbyname(socket.gethostname())
                 sock2.connect((HOST, port))
-                recv = sock2.recv(json_size)
-                print('lista plików w json: {}'.format(cipher_protocol.decrypt(recv)))
+                recv = sock2.recv(json_size_to_recv)
+                print('lista plików w json: {}'.format(cipher_protocol.decrypt(recv).decode('utf-8')[:json_size]))
                 sock2.close()
 
         sock.sendall(cipher_protocol.encrypted_request_upload_file_encode('test4.txt'))
