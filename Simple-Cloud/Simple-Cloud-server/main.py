@@ -265,6 +265,7 @@ if __name__ == "__main__":
         server_thread.start()
         print("Server loop running in thread:", server_thread.name)
 
-        client(ip, port)
+        # client(ip, port)
 
+        server_thread.join()
         # server.shutdown()
