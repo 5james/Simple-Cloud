@@ -10,6 +10,8 @@
 \begin{document}
 	\maketitle
 	
+	\section{Temat projektu}
+	
 	Kilka ogólnych reguł:
 	\begin{enumerate}
 		\item Każdy pakiet ma swój SID (\emph{session ID}) o długości 64 bajty. SID jest losowany przez klienta przy zalogowaniu i aż do momentu wylogowania służy jako identyfikator sesji (lista otwartych sesji jest przechowywana przez serwer). Pakiety o nieznanym numerze sesji inne niż REQ-0 (próba zalogowania) są odrzucane bez odpowiedzi. 
@@ -17,8 +19,18 @@
 		\item Serwer nasłuchuje prób zalogowania się do systemu na porcie 2314 (są to pierwsze cztery cyfry z hasha SHA-512 ze słów "Diffi-Hellman"). Komunikacja z zalogowanymi użytkownikami odbywa się na innych portach. 
 		\item Protokół Diffiego - Hellmana wymaga ustalenia wspólnej liczby pierwszej $p$ oraz podstawy potęgi $g$. Przyjmujemy $p=\ jakas-duza-liczba-pierwsza-majaca-512-bitow$ oraz $g=2$ (bo potęgowanie dwójek jest chyba szybsze niż innych liczb?). Liczba pierwsza po której robimy modulo ma 512 bitów, czyli 64 B i tyle też ma każda liczba używana jako klucz w naszym protokole. 
 	\end{enumerate}
+
+	\section{Opis wykorzystywanych algorytmów}
 	
-	\section{Logowanie użytkownika}
+	\subsection{Protokoł Diffiego - Hellmana}
+	
+	\subsection{Algorytm Serpent}
+	
+	\section{Architektura aplikacji - protokół komunikacyjny}
+	
+	\subsection{Wstęp}
+	
+	\subsection{Logowanie użytkownika}
 	Klient najpierw wysyła swoją nazwę użytkownika. Jeżeli serwer posiada takiego użytkownika w systemie, następuje nawiązanie szyfrowanego połączenia poprzez zastosowanie protokołu Diffiego - Hellmana, a następnie potwierdzenie hasła. Jeżeli takiego użytkownika nie ma w systemie, następuje odmowa połączenia. Jeżeli hasło okaże się nieprawidłowe, również następuje odmowa połączenia. 
 	
 	\begin{enumerate}
@@ -56,7 +68,7 @@
 		
 	\end{enumerate}
 
-	\section{Listowanie zawartości katalogu użytkownika}
+	\subsection{Listowanie zawartości katalogu użytkownika}
 	Klient wysyła zapytanie o listę plików w swoim katalogu. Serwer wysyła odpowiedź. 
 	
 	\begin{enumerate}
@@ -84,7 +96,7 @@
 		
 	\end{enumerate}
 
-	\section{Dodawanie pliku na serwer}
+	\subsection{Dodawanie pliku na serwer}
 	Klient wysyła prośbę o wysłanie pliku na serwer. Serwer sprawdza, czy plik o takiej nazwie znajduje się już w katalogu użytkownika. Jeśli nie, wysyła klientowi pozwolenie na wysyłanie pliku wraz z numerem portu, na którym będzie przebiegać wysyłanie. Po otrzymaniu pozwolenia od serwera, klient rozpoczyna wysyłanie pliku. 
 	
 	\begin{enumerate}
@@ -109,7 +121,7 @@
 
 	\end{enumerate}
 
-	\section{Pobieranie skrótu pliku z serwera}
+	\subsection{Pobieranie skrótu pliku z serwera}
 	Klient wysyła prośbę o wysłanie skrótu (SHA-512) pliku o zadanej nazwie. Serwer odsyła żądany skrót, lub 0, gdy takiego pliku nie ma na serwerze. 
 	
 	\begin{enumerate}
@@ -130,7 +142,7 @@
 		
 	\end{enumerate}
 
-	\section{Pobieranie pliku z serwera}
+	\subsection{Pobieranie pliku z serwera}
 	Klient wysyła prośbę o pobranie pliku z serwera. Serwer sprawdza, czy plik o takiej nazwie znajduje się w katalogu użytkownika. Jeśli tak, wysyła klientowi pozwolenie na pobranie pliku wraz z numerem portu, na którym będzie przebiegać transmisja. Po otrzymaniu pozwolenia od serwera, rozpoczyna się pobieranie pliku. 
 	
 	\begin{enumerate}
@@ -159,7 +171,7 @@
 		
 	\end{enumerate}
 
-	\section{Usuwanie pliku}
+	\subsection{Usuwanie pliku}
 	Klient wysyła prośbę o wysłanie wskazanego pliku z serwera. Serwer odpowiada potwierdzeniem, jeśli plik istnieje i został usunięty. 
 	\begin{enumerate}
 		\item Pakiet REQ-5 (193 B): klient wysyła prośbę o usunięcie wskazanego pliku. 
@@ -178,7 +190,7 @@
 		
 	\end{enumerate}
 
-	\section{Wylogowanie}
+	\subsection{Wylogowanie}
 	Klient wysyła prośbę o wylogowanie z serwera i tym samym usunięcie identyfikatora sesji. 
 	\begin{enumerate}
 		\item Pakiet REQ-6 (129 B) - klient wysyła prośbę o wylogowanie z serwera. 
@@ -191,7 +203,17 @@
 		
 	\end{enumerate}
 
-
+	\section{Stworzona aplikacja}
+	
+	\subsection{Serwer}
+	
+	//TODO Kuba
+	
+	\subsection{Klient}
+	
+	\subsection{Testy}
+	
+	\section{Podsumowanie}
 
 	
 \end{document}
