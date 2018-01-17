@@ -24,6 +24,7 @@ PORT_MAIN = 54047
 
 HOST, PORT = "192.168.43.71", 54047
 
+
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         logger.info('New connection from {}.'.format(self.client_address))
@@ -58,6 +59,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                     break
             except Exception:
                 return
+
     def auth(self):
         dh = DiffieHellman()
         req_0 = self.request.recv(SECRET_LEN + HEADER_SIZE)
@@ -162,7 +164,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                         '{}:{}: new connection accepted, start receiving new file {}.'.format(self.client_address,
                                                                                               self.user_fs.username,
                                                                                               filename))
-                        file = b''
+                    file = b''
                     while len(file) < encrypted_file_size:
                         packet = conn.recv(encrypted_file_size - len(file))
                         if not packet:
@@ -264,8 +266,6 @@ def client(ip, port):
         if didSucceed:
             print('Udalo sie zalogowac')
 
-
-
         to_send = cipher_protocol.encrypted_request_list_files_encode()
         sock.sendall(to_send)
         recv = sock.recv(2048)
@@ -278,7 +278,7 @@ def client(ip, port):
         global HOST
         if port != 0:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                #HOST = socket.gethostbyname(socket.gethostname())
+                # HOST = socket.gethostbyname(socket.gethostname())
                 sock2.connect((HOST, port))
                 recv = sock2.recv(json_size_to_recv)
                 print('lista plików w json: {}'.format(cipher_protocol.decrypt(recv).decode('utf-8')[:json_size]))
@@ -328,19 +328,19 @@ if __name__ == "__main__":
     # Port 0 means to select an arbitrary unused port
     # HOST, PORT = "192.168.43.71", 54047
 
-    #server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
-    #with server:
-     #   ip, port = server.server_address
+    server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
+    with server:
+        ip, port = server.server_address
 
         # Start a thread with the server -- that thread will then start one
         # more thread for each request
-      #  server_thread = threading.Thread(target=server.serve_forever)
+        server_thread = threading.Thread(target=server.serve_forever)
         # Exit the server thread when the main thread terminates
-       # server_thread.daemon = True
-        #server_thread.start()
-        #print("Server loop running in thread:", server_thread.name)
+        server_thread.daemon = True
+        server_thread.start()
+        print("Server loop running in thread:", server_thread.name)
 
-    client(HOST, PORT)
+        # client(HOST, PORT)
 
-        #server_thread.join()
+        server_thread.join()
         # server.shutdown()
