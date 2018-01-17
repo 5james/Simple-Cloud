@@ -41,8 +41,8 @@ public class ListController {
     @FXML public void initialize() {
         PythonResult res = PythonRunner.run("ListFiles");
         if(res.isOK()) {
-            JSONObject jsonObj = new JSONObject(res.getStdout());
-            JSONArray files = jsonObj.getJSONArray("list");
+            System.out.println(res.getStdout());
+            JSONArray files = new JSONArray(res.getStdout());
             for(int i = 0; i < files.length(); ++i) {
                 String file = files.getJSONObject(i).getString("name");
                 list_view.getItems().add(file);
