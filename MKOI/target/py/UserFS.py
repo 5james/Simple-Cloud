@@ -15,6 +15,7 @@ class UserFS:
         # self.home_FS = open_fs(VIRTUAL_FILESYSTEM_DIR + username)
         self.home_OSFS = OSFS(VIRTUAL_FILESYSTEM_DIR + username + '/')
         # self.lock = threading.Condition()
+        self.username = username
 
     def list_all_files(self) -> list:
         result_list = []
