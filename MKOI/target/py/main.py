@@ -162,7 +162,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                         '{}:{}: new connection accepted, start receiving new file {}.'.format(self.client_address,
                                                                                               self.user_fs.username,
                                                                                               filename))
-                    file = b''
+                        file = b''
                     while len(file) < encrypted_file_size:
                         packet = conn.recv(encrypted_file_size - len(file))
                         if not packet:
