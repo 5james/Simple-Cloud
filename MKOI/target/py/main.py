@@ -28,33 +28,35 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
         logger.info('New connection from {}.'.format(self.client_address))
         self.auth()
         while True:
-            recv = self.request.recv(2048)
-            # check if client closed socket
-            if len(recv) == 0:
-                break
-            message_type, message = \
-                self.cipher_protocol.encrypted_establish_message_type(recv)
-            if message_type == MessageType.LIST_FILES.value:
-                self.handle_list_request(message)
+            try:
+                recv = self.request.recv(2048)
+                # check if client closed socket
+                if len(recv) == 0:
+                    break
+                message_type, message = \
+                    self.cipher_protocol.encrypted_establish_message_type(recv)
+                if message_type == MessageType.LIST_FILES.value:
+                    self.handle_list_request(message)
 
-            elif message_type == MessageType.UPLOAD_FILE.value:
-                self.handle_file_upload_request(message)
+                elif message_type == MessageType.UPLOAD_FILE.value:
+                    self.handle_file_upload_request(message)
 
-            elif message_type == MessageType.GET_HASH.value:
-                self.handle_get_file_hash(message)
+                elif message_type == MessageType.GET_HASH.value:
+                    self.handle_get_file_hash(message)
 
-            elif message_type == MessageType.DOWNLOAD_FILE.value:
-                self.handle_download_file(message)
+                elif message_type == MessageType.DOWNLOAD_FILE.value:
+                    self.handle_download_file(message)
 
-            elif message_type == MessageType.DELETE_FILE.value:
-                self.handle_delete_file(message)
+                elif message_type == MessageType.DELETE_FILE.value:
+                    self.handle_delete_file(message)
 
-            elif message_type == MessageType.LOG_OUT.value:
-                break
+                elif message_type == MessageType.LOG_OUT.value:
+                    break
 
-            else:
-                break
-
+                else:
+                    break
+            except Exception:
+                return
     def auth(self):
         dh = DiffieHellman()
         req_0 = self.request.recv(SECRET_LEN + HEADER_SIZE)
@@ -146,7 +148,11 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                     '{}:{}: message with new socket port sent.'.format(self.client_address, self.user_fs.username))
                 recv = self.request.recv(1024)
                 file_size = self.cipher_protocol.encrypted_client_response_upload_file_decode(recv)
-                encrypted_file_size = file_size + (file_size % BYTES_IN_SINGLE_CHUNK)
+                if file_size % 16 != 0:
+                    encrypted_file_size = file_size + (16 - (file_size % 16))
+                else:
+                    encrypted_file_size = file_size
+                # encrypted_file_size = file_size + (BYTES_IN_SINGLE_CHUNK -(file_size % BYTES_IN_SINGLE_CHUNK))
 
                 conn, addr = sock.accept()
                 with conn:
@@ -154,7 +160,14 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                         '{}:{}: new connection accepted, start receiving new file {}.'.format(self.client_address,
                                                                                               self.user_fs.username,
                                                                                               filename))
-                    file = conn.recv(encrypted_file_size)
+                    file = b''
+                    while len(file) < encrypted_file_size:
+                        packet = conn.recv(encrypted_file_size - len(file))
+                        if not packet:
+                            return None
+                        file += packet
+
+                    # file = conn.recv(encrypted_file_size)
                     self.user_fs.save_file_from_bytes(filename, self.cipher_protocol.decrypt(file)[:file_size])
                     # print(file)
                     logger.info('{}:{}: file {} receiver.'.format(self.client_address, self.user_fs.username, filename))
@@ -178,7 +191,9 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
         logger.info('{}:{}: file {} download request.'.format(self.client_address, self.user_fs.username, filename))
         try:
             file_bytes = self.user_fs.get_file_as_bytes(filename)
+            # print(len(file_bytes))
             encrypted_file = self.cipher_protocol.encrypt(file_bytes)
+            # print(len(encrypted_file))
 
             HOST = socket.gethostbyname(socket.gethostname())
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
