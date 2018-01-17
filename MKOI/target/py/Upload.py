@@ -24,8 +24,8 @@ if __name__ == "__main__":
                 my_file_encrypted = cipher_protocol.encrypt(my_file)
                 sock.sendall(cipher_protocol.encrypted_client_response_upload_file_encode(len(my_file)))
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                    HOST = socket.gethostbyname(socket.gethostname())
-                    sock2.connect((HOST, port))
+                    # HOST = socket.gethostbyname(socket.gethostname())
+                    sock2.connect((d["ip"], port))
                     sock2.send(my_file_encrypted)
                     sys.exit(0)
             else:

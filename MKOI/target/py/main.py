@@ -11,6 +11,7 @@ from SerpentCipher import *
 import Users
 from UserFS import *
 
+HOST, PORT = "192.168.43.71", 54047
 
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -74,7 +75,6 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle_list_request(self, message: bytes):
         files = self.user_fs.list_all_files()
         json_files = json.dumps(files, default=datetime_handler)
-        # json_bytes = self.cipher_protocol.encrypt(json_files.encode('utf-8'))
         json_bytes = self.cipher_protocol.encrypt(json_files.encode('utf-8'))
 
         HOST = socket.gethostbyname(socket.gethostname())
@@ -82,7 +82,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
         with sock:
             sock.bind((HOST, 0))
             sock.listen(10)
-            response = self.cipher_protocol.encrypted_response_request_list_files_encode(len(json_bytes),
+            response = self.cipher_protocol.encrypted_response_request_list_files_encode(len(json_files),
                                                                                          sock.getsockname()[1])
             self.request.sendall(response)
 
@@ -184,7 +184,7 @@ def client(ip, port):
         recv = sock.recv(SECRET_LEN)
         secret = Protocol.res_dh_decode(recv)
         dh.generateKey(secret)
-        cipher = SerpentCipherClassicalString(BitArray(bytes=dh.symmectricKey).hex)
+        cipher = SerpentCipher(BitArray(bytes=dh.symmectricKey).hex)
         cipher_protocol = Protocol(cipher)
         auth_msg = cipher_protocol.encrypted_authentication_encode('johny', '123456')
         sock.sendall(auth_msg)
@@ -193,17 +193,24 @@ def client(ip, port):
         if didSucceed:
             print('Udalo sie zalogowac')
 
+
+
         to_send = cipher_protocol.encrypted_request_list_files_encode()
         sock.sendall(to_send)
         recv = sock.recv(2048)
         json_size, port = cipher_protocol.encrypted_response_request_list_files_decode(recv)
+        if json_size % 128 != 0:
+            json_size_to_recv = json_size + (128 - (json_size % 128))
+        else:
+            json_size_to_recv = json_size
         print(port)
+        global HOST
         if port != 0:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                HOST = socket.gethostbyname(socket.gethostname())
+                #HOST = socket.gethostbyname(socket.gethostname())
                 sock2.connect((HOST, port))
-                recv = sock2.recv(json_size)
-                print('lista plików w json: {}'.format(cipher_protocol.decrypt(recv)))
+                recv = sock2.recv(json_size_to_recv)
+                print('lista plików w json: {}'.format(cipher_protocol.decrypt(recv).decode('utf-8')[:json_size]))
                 sock2.close()
 
         sock.sendall(cipher_protocol.encrypted_request_upload_file_encode('test4.txt'))
@@ -215,7 +222,7 @@ def client(ip, port):
             myfile_encrypted = cipher_protocol.encrypt(myfile)
             sock.sendall(cipher_protocol.encrypted_client_response_upload_file_encode(len(myfile)))
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                HOST = socket.gethostbyname(socket.gethostname())
+                # HOST = socket.gethostbyname(socket.gethostname())
                 sock2.connect((HOST, port))
                 sock2.send(myfile_encrypted)
                 print('Udalo sie wyslac plik test4.txt: {}'.format(myfile))
@@ -231,7 +238,7 @@ def client(ip, port):
         print(file_size)
         if port != 0:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                HOST = socket.gethostbyname(socket.gethostname())
+                # HOST = socket.gethostbyname(socket.gethostname())
                 sock2.connect((HOST, port))
                 myfile_encrypted = sock2.recv(2048)
                 myfile_encrypted = cipher_protocol.decrypt(myfile_encrypted)
@@ -248,24 +255,21 @@ def client(ip, port):
 
 if __name__ == "__main__":
     # Port 0 means to select an arbitrary unused port
-    HOST, PORT = "37.47.52.186", 54047
+    # HOST, PORT = "192.168.43.71", 54047
 
     #server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
-
-    client(HOST, PORT)
-
-
     #with server:
-    #    ip, port = server.server_address
+     #   ip, port = server.server_address
 
         # Start a thread with the server -- that thread will then start one
         # more thread for each request
-        #server_thread = threading.Thread(target=server.serve_forever)
+      #  server_thread = threading.Thread(target=server.serve_forever)
         # Exit the server thread when the main thread terminates
-        #server_thread.daemon = True
+       # server_thread.daemon = True
         #server_thread.start()
         #print("Server loop running in thread:", server_thread.name)
 
-        
+    client(HOST, PORT)
 
+        #server_thread.join()
         # server.shutdown()

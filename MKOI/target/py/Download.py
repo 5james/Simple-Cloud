@@ -20,8 +20,8 @@ if __name__ == "__main__":
             bFileExists, file_size, port = cipher_protocol.encrypted_response_download_file_decode(recv)
             if port != 0:
                 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                    HOST = socket.gethostbyname(socket.gethostname())
-                    sock2.connect((HOST, port))
+                    # HOST = socket.gethostbyname(socket.gethostname())
+                    sock2.connect((d["ip"], port))
                     my_file_encrypted = sock2.recv(2048)
                     my_file_encrypted = cipher_protocol.decrypt(my_file_encrypted)
                     file = open(args.file, "bw")

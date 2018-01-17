@@ -49,9 +49,9 @@ def check_credentials_lib(username, password, ip, port):
         did_succeed = cipher_protocol.encrypted_auth_status_decode(recv)
 
         if did_succeed:
-            return sock, cipher_protocol
+            return (sock, cipher_protocol)
         else:
-            return -1, -1
+            return (-1, -1)
 
 
 if __name__ == "__main__":
