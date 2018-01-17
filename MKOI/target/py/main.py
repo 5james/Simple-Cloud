@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 MY_HOST = '192.168.43.71'
 PORT_MAIN = 54047
 
+HOST, PORT = "192.168.43.71", 54047
 
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
@@ -105,6 +106,7 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                 '{}:{}: socket (port={}) for transfer list of files prepared.'.format(self.client_address,
                                                                                       self.user_fs.username,
                                                                                       sock.getsockname()[1]))
+
             response = self.cipher_protocol.encrypted_response_request_list_files_encode(len(json_files),
                                                                                          sock.getsockname()[1])
             self.request.sendall(response)
@@ -247,6 +249,8 @@ def client(ip, port):
         if didSucceed:
             print('Udalo sie zalogowac')
 
+
+
         to_send = cipher_protocol.encrypted_request_list_files_encode()
         sock.sendall(to_send)
         recv = sock.recv(2048)
@@ -255,10 +259,11 @@ def client(ip, port):
             json_size_to_recv = json_size + (128 - (json_size % 128))
         else:
             json_size_to_recv = json_size
-        # print(port)
+        print(port)
+        global HOST
         if port != 0:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                HOST = socket.gethostbyname(socket.gethostname())
+                #HOST = socket.gethostbyname(socket.gethostname())
                 sock2.connect((HOST, port))
                 recv = sock2.recv(json_size_to_recv)
                 print('lista plików w json: {}'.format(cipher_protocol.decrypt(recv).decode('utf-8')[:json_size]))
@@ -273,7 +278,7 @@ def client(ip, port):
             myfile_encrypted = cipher_protocol.encrypt(myfile)
             sock.sendall(cipher_protocol.encrypted_client_response_upload_file_encode(len(myfile)))
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                HOST = socket.gethostbyname(socket.gethostname())
+                # HOST = socket.gethostbyname(socket.gethostname())
                 sock2.connect((HOST, port))
                 sock2.send(myfile_encrypted)
                 print('Udalo sie wyslac plik test4.txt: {}'.format(myfile))
@@ -289,7 +294,7 @@ def client(ip, port):
         print(file_size)
         if port != 0:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                HOST = socket.gethostbyname(socket.gethostname())
+                # HOST = socket.gethostbyname(socket.gethostname())
                 sock2.connect((HOST, port))
                 myfile_encrypted = sock2.recv(2048)
                 myfile_encrypted = cipher_protocol.decrypt(myfile_encrypted)
@@ -306,21 +311,21 @@ def client(ip, port):
 
 if __name__ == "__main__":
     # Port 0 means to select an arbitrary unused port
-    HOST, PORT = MY_HOST, PORT_MAIN
+    # HOST, PORT = "192.168.43.71", 54047
 
-    server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
-    with server:
-        ip, port = server.server_address
+    #server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
+    #with server:
+     #   ip, port = server.server_address
 
         # Start a thread with the server -- that thread will then start one
         # more thread for each request
-        server_thread = threading.Thread(target=server.serve_forever)
+      #  server_thread = threading.Thread(target=server.serve_forever)
         # Exit the server thread when the main thread terminates
-        server_thread.daemon = True
-        server_thread.start()
-        print("Server loop running in thread:", server_thread.name)
+       # server_thread.daemon = True
+        #server_thread.start()
+        #print("Server loop running in thread:", server_thread.name)
 
-        # client(ip, port)
+    client(HOST, PORT)
 
-        server_thread.join()
+        #server_thread.join()
         # server.shutdown()
