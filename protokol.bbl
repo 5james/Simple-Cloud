@@ -1,0 +1,12 @@
+\begin{thebibliography}{1}
+
+\bibitem{Schneier}
+Schneier Bruce. {\it Kryptografia dla praktyków: protokoły, algorytmy i
+  programy źródłowe w języku C.}
+\newblock Wydawnictwa Naukowo-Techniczne, Warszawa; 2002.
+
+\bibitem{Anderson}
+Anderson Eli; Knudsen~Lars. A proposal for the advanced encryption standard..
+  {\it University of Cambridge. }1998;.
+
+\end{thebibliography}

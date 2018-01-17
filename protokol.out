@@ -1,0 +1,18 @@
+\BOOKMARK [1][-]{section.1}{Temat projektu}{}% 1
+\BOOKMARK [1][-]{section.2}{Opis wykorzystywanych algorytm\363w}{}% 2
+\BOOKMARK [2][-]{subsection.2.1}{Protok\363\233 Diffiego - Hellmana}{section.2}% 3
+\BOOKMARK [2][-]{subsection.2.2}{Protoko\233 Diffiego - Hellmana}{section.2}% 4
+\BOOKMARK [2][-]{subsection.2.3}{Algorytm Serpent}{section.2}% 5
+\BOOKMARK [1][-]{section.3}{Architektura aplikacji - protok\363\233 komunikacyjny}{}% 6
+\BOOKMARK [2][-]{subsection.3.1}{Wstep}{section.3}% 7
+\BOOKMARK [2][-]{subsection.3.2}{Protok\363\233 sieciowy programu}{section.3}% 8
+\BOOKMARK [3][-]{subsubsection.3.2.1}{Logowanie uzytkownika}{subsection.3.2}% 9
+\BOOKMARK [3][-]{subsubsection.3.2.2}{Listowanie zawartosci katalogu uzytkownika}{subsection.3.2}% 10
+\BOOKMARK [3][-]{subsubsection.3.2.3}{Dodawanie pliku na serwer}{subsection.3.2}% 11
+\BOOKMARK [3][-]{subsubsection.3.2.4}{Pobieranie skr\363tu pliku z serwera}{subsection.3.2}% 12
+\BOOKMARK [3][-]{subsubsection.3.2.5}{Pobieranie pliku z serwera}{subsection.3.2}% 13
+\BOOKMARK [3][-]{subsubsection.3.2.6}{Usuwanie pliku}{subsection.3.2}% 14
+\BOOKMARK [1][-]{section.4}{Stworzona aplikacja}{}% 15
+\BOOKMARK [2][-]{subsection.4.1}{Serwer}{section.4}% 16
+\BOOKMARK [2][-]{subsection.4.2}{Klient}{section.4}% 17
+\BOOKMARK [2][-]{subsection.4.3}{Testy}{section.4}% 18

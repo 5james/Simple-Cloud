@@ -3,86 +3,114 @@
 \usepackage{polski}
 \usepackage[utf8]{inputenc}
 \usepackage{enumitem}
+\usepackage{hyperref}
 
-\author{Artur M. Brodzki, Kuba Guzek}
-\title{Struktura protokołu MKOI}
+\author{Artur M. Brodzki, Kuba Guzek \\ Prowadzący: Albert Sitek}
+\title{MKOI 17Z - Bezpieczny magazyn plików}
 
 \begin{document}
-	\maketitle
+	\maketitle \pagenumbering{gobble}
+	
+	\newpage \pagenumbering{arabic}
 	
 	\section{Temat projektu}
+	Tematem projektu jest implementacja aplikacji chmurowej do przechowywania plików na zdalnym serwerze. Bezpieczeństwo transmisji jest zapewnione przez szyfrowanie danych algorytmem Serpent. Klucz szyfrowania jest uzgadniany asymetrycznie według protokołu Diffiego - Hellmana. Struktura katalogów użytkowników jest płaska - nie ma możliwości tworzenia podfolderów. Lista użytkowników uprawionych do korzystania z systemu jest tworzona przez administratora. 
 	
-	Kilka ogólnych reguł:
-	\begin{enumerate}
-		\item Każdy pakiet ma swój SID (\emph{session ID}) o długości 64 bajty. SID jest losowany przez klienta przy zalogowaniu i aż do momentu wylogowania służy jako identyfikator sesji (lista otwartych sesji jest przechowywana przez serwer). Pakiety o nieznanym numerze sesji inne niż REQ-0 (próba zalogowania) są odrzucane bez odpowiedzi. 
-		\item Oprócz tego, każde zapytanie do serwera (np. zapytanie o listę plików w katalogu użytkownika) posiada swój RID (\emph{request ID}) o długości 64 bajty. Odpowiedź na zapytanie o RID = $v$ ma też RID = $v$. 
-		\item Serwer nasłuchuje prób zalogowania się do systemu na porcie 2314 (są to pierwsze cztery cyfry z hasha SHA-512 ze słów "Diffi-Hellman"). Komunikacja z zalogowanymi użytkownikami odbywa się na innych portach. 
-		\item Protokół Diffiego - Hellmana wymaga ustalenia wspólnej liczby pierwszej $p$ oraz podstawy potęgi $g$. Przyjmujemy $p=\ jakas-duza-liczba-pierwsza-majaca-512-bitow$ oraz $g=2$ (bo potęgowanie dwójek jest chyba szybsze niż innych liczb?). Liczba pierwsza po której robimy modulo ma 512 bitów, czyli 64 B i tyle też ma każda liczba używana jako klucz w naszym protokole. 
-	\end{enumerate}
-
 	\section{Opis wykorzystywanych algorytmów}
+	\subsection{Protokół Diffiego - Hellmana}
+	Wykorzystujemy algorytm negocjowania klucza sesyjnego z użyciem dużych liczb pierwszych \cite{Schneier}: 
+	\begin{itemize}
+		\item Klient i serwer współdzielą dużą liczbę pierwszą $p$. Jest nią kryptograficznie bezpieczna liczba pierwsza RFC3526-6144 o długości - jak wskazuje nazwa - 6144 bitów, czyli 768 bajtów. Współdzieloną liczbą jest też podstawa potęgi $g=2$. 
+		\item Klient losuje sekretną liczbę całkowitą $a$ i wysyła serwerowi liczbę $A=g^a\ mod\ p$. Analogicznie, serwer losuje liczbę całkowitą $b$ i wysyła klientowi liczbę $B=g^b\ mod\ p$. 
+		\item Klient otrzymuje od serwera liczbę $B$ i oblicza klucz sesyjny $k=B^a\ mod\ p$. Analogicznie, serwer otrzymuje od klienta liczbę $A$ i oblicza ten sam klucz sesyjny $k=A^b\ mod\ p$. 
+	\end{itemize}
 	
 	\subsection{Protokoł Diffiego - Hellmana}
 	
 	\subsection{Algorytm Serpent}
+	Szczegółowa specyfikacja algorytmu Serpent znajduje się w załącznikach do artykułu dostępnego w zasobach Uniwersytetu Cambridge \cite{Anderson}, więc nie będziemy jej tutaj przytaczać w szczegółach. Przedstawimy jednak wszystkie zasadnicze etapy wykonywania tego algorytmu szyfrowania. 
+	
+	Serpent jest szyfrem blokowym operującym na 128-bitowych blokach. 128-bitowy fragment wiadomości jest mapowany na 128-bitowy szyfrogram. Blok podzielony jest na 4 słowa 32-bitowe w konwencji little-endian. Szyfrowanie wykonuje kolejno następujące operacje:
+	\begin{itemize}
+		\item Permutacja początkowa $IP$, zdefiniowana w załączniku A.5 do \cite{Anderson}
+		\item 32 rundy szyfrowania: wynik działania rundy $R_i$ staje się wejściem rundy $R_{i+1}$. Każda runda składa się z następujących etapów:
+		\begin{itemize}
+			\item Mieszanie kluczy szyfrujących
+			\item Transformacja z użyciem S-Boxów. Każdy S-Box Serpenta jest permutacją 4-bajtową. Zdefiniowano 8 różnych S-Boxów, z których każdy jest używany w 4 rundach. W ramach jednej rundy używany jest jeden konkretny S-Box. Kolejność wykonywania S-Boxów określona jest ich numerem porządkowym $S_0, \ldots, S_7$. 
+			Specyfikacja wszystkich ośmiu S-Boxów znajduje się w załączniku A.5 do \cite{Anderson}
+			\item Transformacja liniowa LT, zdefiniowana dokładnie w załączniku A.3 do \cite{Anderson}, jest stosowana w każdej rundzie z wyjątkiem ostatniej. W ostatniej rundzie wykonywana jest dodatkowa operacja mieszania kluczy. 
+		\end{itemize}
+		\item Permutacja końcowa $FP$ będąca odwrotnością transformacji $IP$. 
+	\end{itemize}
+
+	Odszyfrowanie szyfrogramu jest analogicznym procesem, zachodzą jednak następujące zmiany:
+	\begin{itemize}
+		\item S-Boxy są stosowane w odwrotnym porządku. 
+		\item Stosuje się odwrotną transformację liniową $LT^{-1}$, zdefiniowaną w załączniku A.4 do \cite{Anderson}. 
+	\end{itemize}
+
+	Serpent jest szyfrem blokowym i jako taki może funkcjonować w kilku trybach:
+	\begin{itemize}
+		\item Tryb elektronicznej książki kodowej (ECB) - wiadomość dzielona jest na bloki i każdy blok szyfrowany jest niezależnie. Ten tryb szyfrowania nie zapewnia współcześnie bezpieczeństwa, ponieważ zachowuje powtarzające się wzorce w danych. 
+		\item Tryb wiązania bloków zaszyfrowanych (CBC) - wiadomość jawna bloku $B_i$ jest poddawana operacji XOR z szyfrogramem z poprzedniego bloku $B_{i-1}$ i dopiero szyfrowana blokowo. Do pierwszego bloku $B_0$ dodaje się wektor inicjalizacyjny $IV$. Ten tryb zapewnia znaczną entropię wynikowego szyfrogramu i gwarantuje znaczne bezpieczeństwo. 
+	\end{itemize}
+	W ramach projektu zaimplementowano algorytm Serpent w obu wymienionych powyżej trybach. 
 	
 	\section{Architektura aplikacji - protokół komunikacyjny}
-	
 	\subsection{Wstęp}
+	Aplikacja zaprojektowana jest w architekturze klient - serwer. Na serwerze znajdują się wprowadzone przez administratora konta użytkowników uprawionych do korzystania z systemu. Serwer nasłuchuje przychodzących połączeń; po nawiązaniu sesji TCP następuje uzgodnienie klucza sesyjnego przy użyciu protokołu Diffiego - Hellmana. Klucz ten wykorzystywany jest do szyfrowania każdego pakietu przesyłanego pomiędzy klientem a serwerem, w szczególności danych logowania. Po nawiązaniu bezpiecznego połączenia następuje autoryzacja i - o ile cały proces przebiegnie pomyślnie - serwer zezwala na zarządzanie danymi należącymi do klienta. 
 	
-	\subsection{Logowanie użytkownika}
+	\subsection{Protokół sieciowy programu}
+	
+	Istotną częścią systemu jest protokół sieciowy używany do komunikacji pomiędzy serwerem a klientem. Opiszemy teraz strukturę tego protokołu w szczegółach. 
+	
+	\subsubsection{Logowanie użytkownika}
 	Klient najpierw wysyła swoją nazwę użytkownika. Jeżeli serwer posiada takiego użytkownika w systemie, następuje nawiązanie szyfrowanego połączenia poprzez zastosowanie protokołu Diffiego - Hellmana, a następnie potwierdzenie hasła. Jeżeli takiego użytkownika nie ma w systemie, następuje odmowa połączenia. Jeżeli hasło okaże się nieprawidłowe, również następuje odmowa połączenia. 
 	
 	\begin{enumerate}
-		\item Pakiet REQ-0 \label{REQ-1} (129 B): wysyłany przez klienta w celu zalogowania się do systemu. 
+		\item Pakiet REQ-0 \label{REQ-0}: wysyłany przez klienta w celu zalogowania się do systemu. 
 		\begin{itemize}
-			\item SID (64 B)
 			\item REQ-TYPE = 0x00 (1 B)
 			\item USERNAME (64 B) - 64 znaki ASCII. 
 		\end{itemize}
 	
-		\item Pakiet LOGIN-STATUS \label{LOGIN-STATUS} (1 B): serwer wysyła go w celu potwierdzenia poprawności loginu. 
+		\item Pakiet LOGIN-STATUS \label{LOGIN-STATUS}: serwer wysyła go w celu potwierdzenia poprawności loginu. 
 		\begin{itemize}
-			\item LOGIN-FLAG (1B): flaga jest równa 0x00 jeśli logowanie przebiegło poprawnie, lub 0xFF jeśli logowanie nie powiodło się. Protokół znajduje się nad TCP, zakładamy więc, że odebrane dane są zawsze poprawne i nie może wystąpić inna wartosć flagi jak 0x00 $|$ 0xFF. 
+			\item LOGIN-FLAG: flaga jest równa 0x00 jeśli logowanie przebiegło poprawnie, lub 0xFF jeśli logowanie nie powiodło się. Protokół znajduje się nad TCP, zakładamy więc, że odebrane dane są zawsze poprawne i nie może wystąpić inna wartosć flagi jak 0x00 $|$ 0xFF. 
 		\end{itemize}
 	
-		\item Pakiet DH-1 \label{DH-1} (64 B): Jeśli logowanie powiodło się, serwer losuje liczbę $a$ i odpowiada klientowi swoim sekretem $g^a\ mod\ p$. 
+		\item Pakiet DH-1 \label{DH-1}: Jeśli logowanie powiodło się, serwer losuje liczbę $a$ i odpowiada klientowi swoim sekretem $g^a\ mod\ p$. 
 		\begin{itemize}
 			\item DH-SERVER-SECRET (64 B)
 		\end{itemize}
 	
-		\item Pakiet DH-2 \label{DH-2} (128 B): klient losuje liczbę $b$ i odpowiada serwerowi swoim sekretem $g^b\ mod\ p$. 
+		\item Pakiet DH-2 \label{DH-2}: klient losuje liczbę $b$ i odpowiada serwerowi swoim sekretem $g^b\ mod\ p$. 
 		\begin{itemize}
-			\item SID (64 B)
 			\item DH-CLIENT-SECRET (64B)
 		\end{itemize}
 		W tym momencie serwer i klient posiadają wspólny klucz szyfrowania symetrycznego, równy ${g^a}^b={g^b}^a$. Pozostałe komunikaty w ramach sesji są szyfrowane serpentem z użyciem tego klucza. 
 		
-		\item Pakiet PASWD-1 \label{PASWD-1} (128 B): klient wysyła serwerowi wartość funkcji SHA-512 z hasła. 
+		\item Pakiet PASWD-1 \label{PASWD-1}: klient wysyła serwerowi wartość funkcji SHA-512 z hasła. 
 		\begin{itemize}
-			\item SID (64 B)
 			\item PASSWD (64 B)
 		\end{itemize}
 	
-		\item Pakiet LOGIN-STATUS (65 B): serwer wysyła go w celu potwierdzenia poprawności hasła. Struktura identyczna jak w \ref{LOGIN-STATUS}. 	
+		\item Pakiet LOGIN-STATUS: serwer wysyła go w celu potwierdzenia poprawności hasła. Struktura identyczna jak w \ref{LOGIN-STATUS}. 	
 		
 	\end{enumerate}
 
-	\subsection{Listowanie zawartości katalogu użytkownika}
+	\subsubsection{Listowanie zawartości katalogu użytkownika}
 	Klient wysyła zapytanie o listę plików w swoim katalogu. Serwer wysyła odpowiedź. 
 	
 	\begin{enumerate}
-		\item Pakiet REQ-1 \label{REQ-1} (131 B): klient wysyła zapytanie o listę plików w swoim katalogu oraz port, na którym jest gotów odebrać listę. 
+		\item Pakiet REQ-1 \label{REQ-1}: klient wysyła zapytanie o listę plików w swoim katalogu oraz port, na którym jest gotów odebrać listę. 
 		\begin{itemize}
-			\item SID (64 B)
-			\item RID (64 B)
 			\item REQ-TYPE = 0x01 (1 B)
 			\item PORT (2 B)
 		\end{itemize}
 	
-		\item Pakiet LEN-1 \label{LEN-1} (72 B): serwer wysyła długość listy plików w bajtach. 
+		\item Pakiet LEN-1 \label{LEN-1}: serwer wysyła długość listy plików w bajtach. 
 		\begin{itemize}
-			\item RID (64 B)
 			\item LENGTH (8 B)
 		\end{itemize}
 	
@@ -91,79 +119,69 @@
 			\item NAME
 			\item SIZE
 			\item LAST-MODIFICATION
-			\item HASH - wartość funkcji SHA-512 z pliku
 		\end{itemize}
 		
 	\end{enumerate}
 
-	\subsection{Dodawanie pliku na serwer}
+	\subsubsection{Dodawanie pliku na serwer}
 	Klient wysyła prośbę o wysłanie pliku na serwer. Serwer sprawdza, czy plik o takiej nazwie znajduje się już w katalogu użytkownika. Jeśli nie, wysyła klientowi pozwolenie na wysyłanie pliku wraz z numerem portu, na którym będzie przebiegać wysyłanie. Po otrzymaniu pozwolenia od serwera, klient rozpoczyna wysyłanie pliku. 
+	Jeśli plik o takiej nazwie istnieje już na serwerze, serwer odmawia przyjęcia pliku. 
 	
 	\begin{enumerate}
-		\item Pakiet REQ-2 \label{REQ-2} (193 B): klient wysyła prośbę o pozwolenie na dodanie pliku do serwera. 
+		\item Pakiet REQ-2 \label{REQ-2}: klient wysyła prośbę o pozwolenie na dodanie pliku do serwera. 
 		\begin{itemize}
-			\item SID (64 B)
-			\item RID (64 B)
 			\item REQ-TYPE = 0x02 (1 B)
 			\item NAME (64 B) - 64 znaki ASCII
 		\end{itemize}
 	
-		\item Pakiet RES-2 \label{RES-2} (67 B) : serwer wysyła zgodę wraz z numerem portu, na którym serwer jest gotów odebrać plik, lub brak zgody. 
+		\item Pakiet RES-2 \label{RES-2}: serwer wysyła zgodę wraz z numerem portu, na którym serwer jest gotów odebrać plik, lub brak zgody. 
 		\begin{itemize}
-			\item RID (64 B)
 			\item PERM-FLAG (1 B) - równe 0x00, jeśli plik może zostać wysłany na serwer, lub 0xFF jeśli plik nie może zostać wysłany na serwer. 
 			\item PORT (2 B) 
 		\end{itemize}
 	
-		\item Pakiet LEN-1 (72 B): klient wysyła rozmiar wysyłanego pliku. Struktura identyczna jak w \ref{LEN-1}
+		\item Pakiet LEN-1: klient wysyła rozmiar wysyłanego pliku. Struktura identyczna jak w \ref{LEN-1}. 
 	
 		W tym momencie klient nawiązuje nową sesję TCP na porcie $PORT$ serwera i wysyła tam $LENGTH$ bajtów danych zawierających dodawany plik. 
 
 	\end{enumerate}
 
-	\subsection{Pobieranie skrótu pliku z serwera}
-	Klient wysyła prośbę o wysłanie skrótu (SHA-512) pliku o zadanej nazwie. Serwer odsyła żądany skrót, lub 0, gdy takiego pliku nie ma na serwerze. 
+	\subsubsection{Pobieranie skrótu pliku z serwera}
+	Klient wysyła prośbę o wysłanie skrótu (SHA-256) pliku o zadanej nazwie. Serwer odsyła żądany skrót, lub 0, gdy takiego pliku nie ma na serwerze. 
 	
 	\begin{enumerate}
-		\item Pakiet REQ-3 \label{REQ-3} (193 B): klient wysyła prośbę o skrót zadanego pliku. 
+		\item Pakiet REQ-3 \label{REQ-3}: klient wysyła prośbę o skrót zadanego pliku. 
 		\begin{itemize}
-			\item SID (64 B)
-			\item RID (64 B)
 			\item REQ-TYPE = 0x03 (1 B)
 			\item NAME (64 B)
 		\end{itemize}
 		
-		\item Pakiet RES-3 \label{RES-3} (129 B): serwer odpowiada skrótem pliku, o ile plik istnieje.  
+		\item Pakiet RES-3 \label{RES-3}: serwer odpowiada skrótem pliku, o ile plik istnieje.  
 		\begin{itemize}
-			\item RID (64 B)
 			\item EXISTS-FLAG (1 B) - równe 0x00, jeśli plik znajduje się na serwerze, lub 0xFF jeśli pliku brak
 			\item HASH (64 B) - równe skrótowi pliku, jeśli plik znajduje się na serwerze, lub 0x0...0 jeśli pliku brak. 
 		\end{itemize}
 		
 	\end{enumerate}
 
-	\subsection{Pobieranie pliku z serwera}
+	\subsubsection{Pobieranie pliku z serwera}
 	Klient wysyła prośbę o pobranie pliku z serwera. Serwer sprawdza, czy plik o takiej nazwie znajduje się w katalogu użytkownika. Jeśli tak, wysyła klientowi pozwolenie na pobranie pliku wraz z numerem portu, na którym będzie przebiegać transmisja. Po otrzymaniu pozwolenia od serwera, rozpoczyna się pobieranie pliku. 
 	
 	\begin{enumerate}
-		\item Pakiet REQ-4 \label{REQ-4} (193 B): klient prosi o możliwość pobrania pliku z serwera. 
+		\item Pakiet REQ-4 \label{REQ-4}: klient prosi o możliwość pobrania pliku z serwera. 
 		\begin{itemize}
-			\item SID (64 B)
-			\item RID (64 B)
 			\item REQ-TYPE = 0x04 (1 B)
 			\item NAME (64 B)
 		\end{itemize}
 	
-		\item Pakiet RES-4 \label{RES-4} (65 B): serwer odpowiada zgodą, o ile plik istnieje oraz długością przesyłanego pliku. 
+		\item Pakiet RES-4 \label{RES-4}: serwer odpowiada zgodą, o ile plik istnieje oraz długością przesyłanego pliku. 
 		\begin{itemize}
-			\item RID (64 B)
 			\item EXISTS-FLAG (1 B) - równe 0x00, jeśli plik istnieje, lub 0xFF jeśli pliku brak. 
 			\item LENGTH (8 B)
 		\end{itemize}
 	
-		\item Pakiet PORT-1 \label{PORT-1} (66 B): klient przesyła serwerowi port, na którym jest gotów odebrać plik. 
+		\item Pakiet PORT-1 \label{PORT-1}: klient przesyła serwerowi port, na którym jest gotów odebrać plik. 
 		\begin{itemize}
-			\item RID (64 B)
 			\item PORT (2 B)
 		\end{itemize}
 	
@@ -171,37 +189,22 @@
 		
 	\end{enumerate}
 
-	\subsection{Usuwanie pliku}
+	\subsubsection{Usuwanie pliku}
 	Klient wysyła prośbę o wysłanie wskazanego pliku z serwera. Serwer odpowiada potwierdzeniem, jeśli plik istnieje i został usunięty. 
 	\begin{enumerate}
-		\item Pakiet REQ-5 (193 B): klient wysyła prośbę o usunięcie wskazanego pliku. 
+		\item Pakiet REQ-5: klient wysyła prośbę o usunięcie wskazanego pliku. 
 		\begin{itemize}
-			\item SID (64 B)
-			\item RID (64 B)
 			\item REQ-TYPE = 0x05 (1 B)
 			\item NAME (64 B)
 		\end{itemize}
 	
-		\item Pakiet RES-5 (72 B): serwer wysyła potwierdzenie usunięcia pliku lub stwierdza, że pliku nie było na serwerze. 
+		\item Pakiet RES-5: serwer wysyła potwierdzenie usunięcia pliku lub stwierdza, że pliku nie było na serwerze. 
 		\begin{itemize}
-			\item RID (64 B)
 			\item DELETE-FLAG (1 B) - równe 0x00, jeśli plik został poprawnie usunięty, lub 0xFF jeśĺi pliku o zadanej nazwie nie było na serwerze. 
 		\end{itemize}
 		
 	\end{enumerate}
-
-	\subsection{Wylogowanie}
-	Klient wysyła prośbę o wylogowanie z serwera i tym samym usunięcie identyfikatora sesji. 
-	\begin{enumerate}
-		\item Pakiet REQ-6 (129 B) - klient wysyła prośbę o wylogowanie z serwera. 
-		\begin{itemize}
-			\item SID (64 B)
-			\item RID (64 B)
-			\item REQ-TYPE = 0x06 (1 B)
-		\end{itemize}
 		
-		
-	\end{enumerate}
 
 	\section{Stworzona aplikacja}
 	
@@ -210,10 +213,39 @@
 	//TODO Kuba
 	
 	\subsection{Klient}
+	Aplikacja kliencka pozwala na zarządzanie plikami użytkownika zamieszczonymi na serwerze. Zgodnie z założeniami projektu, powinna działać w systemie Android. W celu zbudowania projektu wykorzystaliśmy jednak istniejącą implementację algorytmu Serpent w języku C, kompilowaną do biblioteki dynamicznej. Niestety nie udało się nam przeportować tej implementacji na bibliotekę dynamiczną poprawnie ładującą się na Androidzie z poziomu języka Java, ze względu na problemy z architekturą procesora (urządzenia mobilne, w przeciwieństwie do komputerów tradycyjnych, używają w znakomitej większości procesorów opartych o różne wersje architektury ARM). Sytuacja ta zmusiła nas do wykonania graficznego interfejsu użytkownika dla systemu Windows. 
+	
+	Kod aplikacji znajduje się na serwerze GitHub pod adresem \url{https://github.com/5james/Simple-Cloud} . Na tej samej stronie możliwe jest pobranie instalatora aplikacji w formie skompresowanego archiwum ZIP. Archiwum należy wypakować, a aplikację można uruchomić poprzez plik mkoi.exe. 
+	
+	Aplikacja kliencka łączy się zdalnym serwerem. Dane serwera, do którego będziemy się łączyć - adres IP oraz port - zapisane są w pliku server.conf. 
+	
+	Aplikacja posiada dwa główne okna: okno logowania i okno zarządzania serwerem. W oknie logowania wprowadza się nazwę użytkownika i hasło. Jeżeli logowanie przebiegnie poprawnie, aplikacja przełącza się w tryb zarządzania plikami. W tym trybie widoczna jest aktualna lista przechowywanych na serwerze plików (potencjalnie pusta) oraz przyciski umożliwiające wykonanie różnych akcji:
+	\begin{itemize}
+		\item Upload - umożliwia dodanie nowego pliku na serwer. Dodawany jest plik znajdujący się lokalnie na komputerze klienta. 
+		\item Refresh - umożliwia odświeżenie listy plików. 
+		\item Sign out - umożliwia wylogowanie. 
+		\item Download - umożliwia pobranie wskazanego pliku z listy na lokalną maszynę. Plik pobierany jest do katalogu z aplikacją. 
+		\item Delete - przycisk usuwa wskazany plik z serwera. 
+		\item Hash - umożliwia wyświetlenie skrótu wskazanego pliku, np. w celu weryfikacji poprawności pobierania. 
+	\end{itemize}
+	
+	Aplikacja kliencka cechuje się prostotą i łatwością użytkowania. 
 	
 	\subsection{Testy}
+	Testy aplikacji realizowane były w formie bezpośredniej interakcji użytkownika końcowego z aplikacją. Testy przebiegły pomyślnie, a aplikacja wykonuje poprawnie wszystkie przewidziane jej funkcje:
+	\begin{itemize}
+		\item Logowanie i wylogowanie użytkownika
+		\item Dodawanie i pobieranie pliku z serwera
+		\item Usuwanie pliku
+		\item Generowanie skrótu SHA-256 pliku znajdującego się na serwerze
+		\item Poprawna obsługa wielu użytkowników
+	\end{itemize}
+
+	W razie niepowodzenia, aplikacja wyświetla podstawowe komunikaty o błędzie i jego przyczynie. Godny uwagi jest jednak fakt, że działanie aplikacji nie zawsze jest szybkie - zwłaszcza szyfrowanie i deszyfrowanie większych plików zajmuje pewien czas, co spowalnia działanie aplikacji. W tyj sprawie z pewnością jest jeszcze pole do dalszych optymalizacji. 
 	
-	\section{Podsumowanie}
+	%% References with bibTeX database:
+	\bibliographystyle{WileyNJD-AMA}
+	\bibliography{protokol.bib}
 
 	
 \end{document}
