@@ -89,9 +89,9 @@ if __name__ == '__main__':
     alice.generateKey(bob.publicKey)
     bob.generateKey(alice.publicKey)
 
-    print(bob.publicKey)
+    # print(bob.publicKey)
 
-    if alice.symmectricKey == bob.symmectricKey:
-        print("OK")
-    else:
-        print("keys does NOT match!")
+    #if alice.symmectricKey == bob.symmectricKey:
+        # print("OK")
+    #else:
+        # print("keys does NOT match!")

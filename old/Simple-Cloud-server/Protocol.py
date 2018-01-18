@@ -7,7 +7,7 @@ from SerpentCipherClassicalString import *
 from SerpentCipher import *
 
 
-# TODO: get exceptions right
+# TODO: get exceptions right`
 
 class MessageType(Enum):
     LOG_IN = 0
@@ -208,7 +208,7 @@ class Protocol:
     @staticmethod
     def authentication_decode(message: bytes) -> (str, bytes):
         if len(message) != MAX_USERNAME_SIZE + MAX_PASSWORD_SIZE:
-            raise Exception('Wrong message length')
+            raise Exception('Wrong message length, got ', len(message), " expected ", MAX_USERNAME_SIZE + MAX_PASSWORD_SIZE)
         actualPosition = 0
         username = message[actualPosition: actualPosition + MAX_USERNAME_SIZE].decode('utf-8')
         username = re.match(r'[\w +-/*,()\[\]&]*', username, re.M | re.I).group()

@@ -831,11 +831,11 @@ class Observer:
                 raise ValueError("unknown kind: %s. Valid ones are %s" % (
                     kind, list(self.typesOfVariable.keys())))
 
-            print(label, end=' ')
-            if output:
-                print("=", output)
-            else:
-                print()
+            # print(label, end=' ')
+            #if output:
+            #    print("=", output)
+            #else:
+            #    print()
 
 
 # We make one global observer object that is always available
@@ -1246,7 +1246,7 @@ if __name__ == "__main__":
 
     textToEncryptBytes = bytes(BitArray(hex=textToEncrypt).bytes)
     encrypted = s.encrypt_bytes(textToEncryptBytes)
-    print(">>>", BitArray(bytes=encrypted).hex)
+    # print(">>>", BitArray(bytes=encrypted).hex)
     decrypted = s.decrypt_bytes(encrypted)
-    print(BitArray(bytes=decrypted).hex)
+    # print(BitArray(bytes=decrypted).hex)
     # print(textToEncrypt)

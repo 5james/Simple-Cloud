@@ -8,7 +8,7 @@ c_uint_p = POINTER(c_uint)
 c_byte_p = POINTER(c_byte)
 
 # load the shared object file
-SerpentLib = cdll.LoadLibrary("./Serpent.dll")
+SerpentLib = cdll.LoadLibrary(".\serpent.dll")
 
 MAX_KEY_SIZE = 64
 MAX_IV_SIZE = 32
