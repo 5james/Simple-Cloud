@@ -19,42 +19,45 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-MY_HOST = '192.168.43.71'
+MY_HOST =  socket.gethostbyname(socket.gethostname())
 PORT_MAIN = 54047
 
-HOST, PORT = "192.168.43.71", 54047
 
 class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
-        logger.info('New connection from {}.'.format(self.client_address))
-        self.auth()
+        # logger.info('New connection from {}.'.format(self.client_address))
+        if not self.auth():
+            return
         while True:
-            recv = self.request.recv(2048)
-            # check if client closed socket
-            if len(recv) == 0:
-                break
-            message_type, message = \
-                self.cipher_protocol.encrypted_establish_message_type(recv)
-            if message_type == MessageType.LIST_FILES.value:
-                self.handle_list_request(message)
+            try:
+                recv = self.request.recv(2048)
+                # check if client closed socket
+                if len(recv) == 0:
+                    break
+                message_type, message = \
+                    self.cipher_protocol.encrypted_establish_message_type(recv)
+                if message_type == MessageType.LIST_FILES.value:
+                    self.handle_list_request(message)
 
-            elif message_type == MessageType.UPLOAD_FILE.value:
-                self.handle_file_upload_request(message)
+                elif message_type == MessageType.UPLOAD_FILE.value:
+                    self.handle_file_upload_request(message)
 
-            elif message_type == MessageType.GET_HASH.value:
-                self.handle_get_file_hash(message)
+                elif message_type == MessageType.GET_HASH.value:
+                    self.handle_get_file_hash(message)
 
-            elif message_type == MessageType.DOWNLOAD_FILE.value:
-                self.handle_download_file(message)
+                elif message_type == MessageType.DOWNLOAD_FILE.value:
+                    self.handle_download_file(message)
 
-            elif message_type == MessageType.DELETE_FILE.value:
-                self.handle_delete_file(message)
+                elif message_type == MessageType.DELETE_FILE.value:
+                    self.handle_delete_file(message)
 
-            elif message_type == MessageType.LOG_OUT.value:
-                break
+                elif message_type == MessageType.LOG_OUT.value:
+                    break
 
-            else:
-                break
+                else:
+                    break
+            except Exception:
+                return
 
     def auth(self):
         dh = DiffieHellman()
@@ -71,24 +74,27 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
 
         authSuccess = False
         while not authSuccess:
-            msg = self.request.recv(1024)
-            username, password_sha3_512 = self.cipher_protocol.encrypted_authentication_decode(msg)
-            bUserExists = Users.check_user_existence(username)
-            if not bUserExists:
-                logger.info('{}: Failed login attempt - user {} doesnt exist.'.format(self.client_address, username))
-                self.request.sendall(self.cipher_protocol.encrypted_auth_status_encode(False))
-                continue
-            authSuccess = Users.check_user_password(username, password_sha3_512)
-            if not authSuccess:
-                logger.info(
-                    '{}: Failed login attempt - bad password for user {} .'.format(self.client_address, username))
-                self.request.sendall(self.cipher_protocol.encrypted_auth_status_encode(False))
-                continue
-            else:
-                logger.info('{}: user {} successfully log on.'.format(self.client_address, username))
-                self.user_fs = UserFS(username)
-                self.request.sendall(self.cipher_protocol.encrypted_auth_status_encode(True))
-                return True
+            try:
+                msg = self.request.recv(1024)
+                username, password_sha3_512 = self.cipher_protocol.encrypted_authentication_decode(msg)
+                bUserExists = Users.check_user_existence(username)
+                if not bUserExists:
+                    logger.info('{}: Failed login attempt - user {} doesnt exist.'.format(self.client_address, username))
+                    self.request.sendall(self.cipher_protocol.encrypted_auth_status_encode(False))
+                    continue
+                authSuccess = Users.check_user_password(username, password_sha3_512)
+                if not authSuccess:
+                    logger.info(
+                        '{}: Failed login attempt - bad password for user {} .'.format(self.client_address, username))
+                    self.request.sendall(self.cipher_protocol.encrypted_auth_status_encode(False))
+                    continue
+                else:
+                    logger.info('{}: user {} successfully log on.'.format(self.client_address, username))
+                    self.user_fs = UserFS(username)
+                    self.request.sendall(self.cipher_protocol.encrypted_auth_status_encode(True))
+                    return True
+            except:
+                return False
 
     def handle_list_request(self, message: bytes):
         logger.info('{}:{}: requests files list.'.format(self.client_address, self.user_fs.username))
@@ -148,7 +154,11 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                     '{}:{}: message with new socket port sent.'.format(self.client_address, self.user_fs.username))
                 recv = self.request.recv(1024)
                 file_size = self.cipher_protocol.encrypted_client_response_upload_file_decode(recv)
-                encrypted_file_size = file_size + (file_size % BYTES_IN_SINGLE_CHUNK)
+                if file_size % 16 != 0:
+                    encrypted_file_size = file_size + (16 - (file_size % 16))
+                else:
+                    encrypted_file_size = file_size
+                # encrypted_file_size = file_size + (BYTES_IN_SINGLE_CHUNK -(file_size % BYTES_IN_SINGLE_CHUNK))
 
                 conn, addr = sock.accept()
                 with conn:
@@ -156,7 +166,14 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
                         '{}:{}: new connection accepted, start receiving new file {}.'.format(self.client_address,
                                                                                               self.user_fs.username,
                                                                                               filename))
-                    file = conn.recv(encrypted_file_size)
+                    file = b''
+                    while len(file) < encrypted_file_size:
+                        packet = conn.recv(encrypted_file_size - len(file))
+                        if not packet:
+                            return None
+                        file += packet
+
+                    # file = conn.recv(encrypted_file_size)
                     self.user_fs.save_file_from_bytes(filename, self.cipher_protocol.decrypt(file)[:file_size])
                     # print(file)
                     logger.info('{}:{}: file {} receiver.'.format(self.client_address, self.user_fs.username, filename))
@@ -180,7 +197,9 @@ class ThreadedTCPRequestHandler(socketserver.BaseRequestHandler):
         logger.info('{}:{}: file {} download request.'.format(self.client_address, self.user_fs.username, filename))
         try:
             file_bytes = self.user_fs.get_file_as_bytes(filename)
+            # print(len(file_bytes))
             encrypted_file = self.cipher_protocol.encrypt(file_bytes)
+            # print(len(encrypted_file))
 
             HOST = socket.gethostbyname(socket.gethostname())
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -242,14 +261,14 @@ def client(ip, port):
         dh.generateKey(secret)
         cipher = SerpentCipher(BitArray(bytes=dh.symmectricKey).hex)
         cipher_protocol = Protocol(cipher)
-        auth_msg = cipher_protocol.encrypted_authentication_encode('johny', '123456')
+        auth_msg = cipher_protocol.encrypted_authentication_encode('johny1', '123456')
         sock.sendall(auth_msg)
         recv = sock.recv(1024)
         didSucceed = cipher_protocol.encrypted_auth_status_decode(recv)
         if didSucceed:
             print('Udalo sie zalogowac')
-
-
+        else:
+            return
 
         to_send = cipher_protocol.encrypted_request_list_files_encode()
         sock.sendall(to_send)
@@ -260,11 +279,9 @@ def client(ip, port):
         else:
             json_size_to_recv = json_size
         print(port)
-        global HOST
         if port != 0:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                #HOST = socket.gethostbyname(socket.gethostname())
-                sock2.connect((HOST, port))
+                sock2.connect((MY_HOST, port))
                 recv = sock2.recv(json_size_to_recv)
                 print('lista plików w json: {}'.format(cipher_protocol.decrypt(recv).decode('utf-8')[:json_size]))
                 sock2.close()
@@ -278,8 +295,7 @@ def client(ip, port):
             myfile_encrypted = cipher_protocol.encrypt(myfile)
             sock.sendall(cipher_protocol.encrypted_client_response_upload_file_encode(len(myfile)))
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                # HOST = socket.gethostbyname(socket.gethostname())
-                sock2.connect((HOST, port))
+                sock2.connect((MY_HOST, port))
                 sock2.send(myfile_encrypted)
                 print('Udalo sie wyslac plik test4.txt: {}'.format(myfile))
 
@@ -294,8 +310,7 @@ def client(ip, port):
         print(file_size)
         if port != 0:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock2:
-                # HOST = socket.gethostbyname(socket.gethostname())
-                sock2.connect((HOST, port))
+                sock2.connect((MY_HOST, port))
                 myfile_encrypted = sock2.recv(2048)
                 myfile_encrypted = cipher_protocol.decrypt(myfile_encrypted)
                 print('Pobrano plik test4.txt: {}'.format(myfile_encrypted[:file_size]))
@@ -313,19 +328,19 @@ if __name__ == "__main__":
     # Port 0 means to select an arbitrary unused port
     # HOST, PORT = "192.168.43.71", 54047
 
-    #server = ThreadedTCPServer((HOST, PORT), ThreadedTCPRequestHandler)
-    #with server:
-     #   ip, port = server.server_address
+    server = ThreadedTCPServer((MY_HOST, PORT_MAIN), ThreadedTCPRequestHandler)
+    with server:
+        ip, port = server.server_address
 
         # Start a thread with the server -- that thread will then start one
         # more thread for each request
-      #  server_thread = threading.Thread(target=server.serve_forever)
+        server_thread = threading.Thread(target=server.serve_forever)
         # Exit the server thread when the main thread terminates
-       # server_thread.daemon = True
-        #server_thread.start()
-        #print("Server loop running in thread:", server_thread.name)
+        server_thread.daemon = True
+        server_thread.start()
+        print("Server loop running in thread:", server_thread.name)
 
-    client(HOST, PORT)
+        client(MY_HOST, PORT_MAIN)
 
-        #server_thread.join()
+        server_thread.join()
         # server.shutdown()

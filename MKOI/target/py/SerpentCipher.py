@@ -136,11 +136,11 @@ class SerpentCipher:
 if __name__ == "__main__":
     textToEncrypt = '100100000000000000000000000000001001000000000000000000000000000011'
     textToEncryptBytes = bytes(BitArray(hex=textToEncrypt).bytes)
-    # print(BitArray(bytes=textToEncryptBytes).hex)
+    print(BitArray(bytes=textToEncryptBytes).hex)
     s = SerpentCipher('0000000000000000000000000000000000000000000000000000000000000000', mode=MODE_CBC, iv='10010000000000000000000000000000')
     encrypted = s.encrypt_bytes(textToEncryptBytes)
-    # print(BitArray(bytes=encrypted).hex)
+    print(BitArray(bytes=encrypted).hex)
 
     decrypted = s.decrypt_bytes(encrypted)
-    # print(BitArray(bytes=decrypted).hex)
+    print(BitArray(bytes=decrypted).hex)
 
