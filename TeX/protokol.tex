@@ -223,6 +223,41 @@
 	Oprócz ostatiej opcji wszystkie dotyczą manipulacji na plikach użytkownikach. Wszystkie manipulacje zostały zawarte w module \textit{UserFS.py}. Zarządza ona wirtualnym systemem plików użytkowników. Każdy użytkownik posiada własny folder o nazwie odpowiadającej swojej nazwie użytkownika, który znajduje się w nadfolderze \textit{virtual-fs}. 
 
 	Kolejnym ważnym modułem w serwerze jest moduł komunikacji \textit{Protocol.py}. Zawiera on klasę \textit{Protocol}, która jest inicjalizowana z argumentem modułu szyfrującego (tu: \textit{SerpentCipher} albo \textit{SerpentCipherClassicalString}). Jest on ważny, gdyż każda wiadomość jest szyfrowana i odszyfrowana w tym module. Protokół opakowuje całą komunikację między klientem a serwerem - w obie strony. Nie będzie w tej dokumentacji opisana każda metoda, gdyż są one opisane w protokole komunikacyjnym. Zamiast tego zostanie tutaj opisana metoda dodawania wszystkich typów wiadomości. Przede wszystkim każda wiadomość z protokołu jest zaimplementowana jako funkcja w stronę: zmienne w pythonie -> postać binarna (przyrostek \textit{_encode}) oraz w odwrotną stronę: postać binarna -> zmienne w pythonie (przyrostek \textit{_decode}). Każda z takich metod jest statyczna, gdyż nie potrzebuje nic z klasy (modułu szyfrującego). Oprócz pierwszych paru wiadomości z \textit{auth} każda wiadomość może być następnie zaszyfrowana oraz odszyfrowana. Jest to zaimplementowane w postaci obudowy istniejących funkcji (\textit{_encode} i \textit{_decode}) za pomocą nowych funkcji klasy \textit{Protocol} (tym razem już nie statycznych, bo używają modułu szyfrującego) o nazwie takiej, jak funkcja, którą obudowuje odpowiednio z przedrostkiem \textit{encrypt_} lub \textit{decrypt_}.
+
+	Logi po wykonaniu testowego klienta wywołanego:
+Server loop running in thread: Thread-1
+2018-01-18 15:36:57,828:INFO:New connection from ('192.168.61.169', 49381).
+Udalo sie zalogowac
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381): Keys generated and cipher initialized.
+49382
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381): user johny successfully log on.
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381):johny: requests files list.
+lista plików w json: [{"name": "Nowy obraz mapy bitowej.bmp", "size": 2239542, "last_modification": "2017-11-14T23:34:29.000867+00:00"}, {"name": "test.txt", "size": 6, "last_modification": "2017-11-15T21:22:35.583368+00:00"}, {"name": "test2.txt", "size": 8, "last_modification": "2017-11-15T17:55:06.056542+00:00"}]
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381):johny: list of files prepared.
+True 49384
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381):johny: socket (port=49382) for transfer list of files prepared.
+Udalo sie wyslac plik test4.txt: b'12341234'
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381):johny: message with new socket port sent.
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381):johny: new connection accepted, start sending list of files
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381):johny: list of files sent.
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381):johny: file test4.txt upload request.
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381):johny: socket (port=49384) for file uploading prepared.
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381):johny: message with new socket port sent.
+2018-01-18 15:36:57,984:INFO:('192.168.61.169', 49381):johny: new connection accepted, start receiving new file test4.txt.
+2018-01-18 15:36:58,000:INFO:('192.168.61.169', 49381):johny: file test4.txt receiver.
+Plik istenieje: True, jego hash: b"d\xd0\x9d\x990\xc8\xec\xf7\x9eQ1g\xa5\x88\xcbuC\x9bv,\xe8\xf9\xb2.\xa5\x97e\xf3*\xa7L\xa1\x9d/\x1e\x97\xdc\x92*=ITYJ\x05\x06)\x17\xfb$\xd1\xf8\xe7/.\xd0*X\xedu4\xf9M'"
+2018-01-18 15:36:58,000:INFO:('192.168.61.169', 49381):johny: file test.txt hash request.
+8
+2018-01-18 15:36:58,000:INFO:('192.168.61.169', 49381):johny: sent hash of file test.txt.
+Pobrano plik test4.txt: b'12341234'
+2018-01-18 15:36:58,000:INFO:('192.168.61.169', 49381):johny: file test4.txt download request.
+Udalo sie usunac plik
+2018-01-18 15:36:58,000:INFO:('192.168.61.169', 49381):johny: socket (port=49386) for file download prepared.
+2018-01-18 15:36:58,000:INFO:('192.168.61.169', 49381):johny: message with new socket port sent.
+2018-01-18 15:36:58,000:INFO:('192.168.61.169', 49381):johny: new connection accepted, start sending new file test4.txt.
+2018-01-18 15:36:58,000:INFO:('192.168.61.169', 49381):johny: file test4.txt sent.
+2018-01-18 15:36:58,000:INFO:('192.168.61.169', 49381):johny: file test4.txt delete request.
+2018-01-18 15:36:58,000:INFO:('192.168.61.169', 49381):johny: response True sent.
 	
 	\subsection{Klient}
 	Aplikacja kliencka pozwala na zarządzanie plikami użytkownika zamieszczonymi na serwerze. Zgodnie z założeniami projektu, powinna działać w systemie Android. W celu zbudowania projektu wykorzystaliśmy jednak istniejącą implementację algorytmu Serpent w języku C, kompilowaną do biblioteki dynamicznej. Niestety nie udało się nam przeportować tej implementacji na bibliotekę dynamiczną poprawnie ładującą się na Androidzie z poziomu języka Java, ze względu na problemy z architekturą procesora (urządzenia mobilne, w przeciwieństwie do komputerów tradycyjnych, używają w znakomitej większości procesorów opartych o różne wersje architektury ARM). Sytuacja ta zmusiła nas do wykonania graficznego interfejsu użytkownika dla systemu Windows. 
